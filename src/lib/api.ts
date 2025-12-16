@@ -29,7 +29,7 @@ export const location = {
     startTracking: () => api.post('/location/start'),
     stopTracking: (summary?: { distance: number }) => api.post('/location/stop', summary),
     updateLocation: (locations: any[]) => api.post('/location/update', { locations }),
-    getHistory: () => api.get('/location/history'),
+    getHistory: (limit?: number) => api.get('/location/history', { params: { limit } }),
 };
 
 export default api;

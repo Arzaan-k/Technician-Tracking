@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { location } from '@/lib/api';
 import { format } from 'date-fns';
-import { MapPin, Clock, RefreshCw } from 'lucide-react';
+import { MapPin, Clock, RefreshCw, Navigation } from 'lucide-react';
 
 export default function History() {
     const [logs, setLogs] = useState<any[]>([]);
@@ -53,44 +53,100 @@ export default function History() {
                 </button>
             </header>
 
-            <div className="space-y-4">
-                {Array.isArray(logs) && logs.map((log) => {
-                    // Safe parsing
-                    const lat = Number(log.latitude);
-                    const long = Number(log.longitude);
-                    const date = new Date(log.timestamp);
-                    const isValidDate = !isNaN(date.getTime());
+            <div className="space-y-8">
+                {Object.entries(
+                    logs.reduce((groups: any, log) => {
+                        const date = new Date(log.timestamp);
+                        if (isNaN(date.getTime())) return groups;
+                        const dateKey = format(date, 'EEEE, MMMM d, yyyy');
+                        if (!groups[dateKey]) groups[dateKey] = [];
+                        groups[dateKey].push(log);
+                        return groups;
+                    }, {})
+                ).map(([date, dayLogs]: [string, any]) => (
+                    <div key={date} className="relative">
+                        <h3 className="sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10 font-bold text-lg text-foreground border-b mb-4">
+                            {date}
+                        </h3>
+                        <div className="space-y-6 relative pl-4 border-l-2 border-muted ml-2">
+                            {dayLogs.map((log: any) => {
+                                const lat = Number(log.latitude);
+                                const long = Number(log.longitude);
+                                const date = new Date(log.timestamp);
+                                const speedKm = log.speed ? Math.round(Number(log.speed) * 3.6) : 0;
+                                const isMoving = speedKm > 1;
 
-                    return (
-                        <div key={log.id} className="bg-card border border-border rounded-xl p-4 flex justify-between items-start shadow-sm">
-                            <div className="flex gap-3">
-                                <div className="mt-1 bg-primary/10 p-2 rounded-full text-primary">
-                                    <MapPin className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-sm">Location Update</p>
-                                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                        <Clock className="w-3 h-3" />
-                                        {isValidDate ? format(date, 'PP p') : 'Invalid Date'}
+                                return (
+                                    <div key={log.id} className="relative bg-card border border-border rounded-xl p-4 shadow-sm transition-all hover:shadow-md">
+                                        {/* Timeline Dot */}
+                                        <div className="absolute -left-[25px] top-6 w-4 h-4 rounded-full border-2 border-background bg-primary"></div>
+
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`p-1.5 rounded-lg ${isMoving ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
+                                                    <Clock className="w-4 h-4" />
+                                                </div>
+                                                <span className="font-mono font-medium text-lg">
+                                                    {format(date, 'p')}
+                                                </span>
+                                            </div>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${isMoving ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                                {isMoving ? 'MOVING' : 'STATIONARY'}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div className="space-y-1">
+                                                <p className="text-muted-foreground text-xs uppercase tracking-wider">Coordinates</p>
+                                                <div className="flex items-center gap-1.5 font-mono text-foreground">
+                                                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                                                    {lat.toFixed(5)}, {long.toFixed(5)}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <p className="text-muted-foreground text-xs uppercase tracking-wider">Speed</p>
+                                                <div className="flex items-center gap-1.5 font-mono text-foreground">
+                                                    <Navigation className="w-3.5 h-3.5 text-blue-500" />
+                                                    {speedKm} km/h
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <p className="text-muted-foreground text-xs uppercase tracking-wider">Accuracy</p>
+                                                <div className="flex items-center gap-1.5 font-mono text-foreground">
+                                                    <RefreshCw className="w-3.5 h-3.5 text-purple-500" /> {/* Reusing icon or import Crosshair */}
+                                                    ± {Math.round(log.accuracy || 0)}m
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <p className="text-muted-foreground text-xs uppercase tracking-wider">Device Status</p>
+                                                <div className="flex items-center gap-3">
+                                                    {log.battery_level !== null && (
+                                                        <div className="flex items-center gap-1 font-mono text-foreground">
+                                                            {/* Simple colored text for battery */}
+                                                            <span className={Number(log.battery_level) < 20 ? "text-red-500" : "text-green-500"}>
+                                                                {log.battery_level}%
+                                                            </span>
+                                                            <span className="text-[10px] text-muted-foreground">BAT</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Footer Metadata */}
+                                        <div className="mt-4 pt-3 border-t border-border flex justify-between items-center text-[10px] text-muted-foreground uppercase font-medium">
+                                            <span>Heading: {log.heading ? Math.round(log.heading) + '°' : 'N/A'}</span>
+                                            <span>Sync: {log.network_status || 'OK'}</span>
+                                        </div>
                                     </div>
-                                    {log.speed !== null && (
-                                        <p className="text-xs mt-1 text-muted-foreground">
-                                            Speed: {Math.round(Number(log.speed) * 3.6)} km/h
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-xs font-mono text-muted-foreground block">
-                                    {!isNaN(lat) ? lat.toFixed(4) : '?'}, {!isNaN(long) ? long.toFixed(4) : '?'}
-                                </span>
-                                <span className="inline-block mt-2 px-2 py-0.5 bg-secondary text-[10px] rounded-full text-muted-foreground">
-                                    {log.network_status || 'Synced'}
-                                </span>
-                            </div>
+                                );
+                            })}
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
 
                 {logs.length === 0 && (
                     <div className="text-center py-12 text-muted-foreground">

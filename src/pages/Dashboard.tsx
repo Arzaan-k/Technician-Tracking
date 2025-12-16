@@ -6,17 +6,43 @@ import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import UserMap from '@/components/UserMap';
+import { location } from '@/lib/api';
 
 export default function Dashboard() {
     const { user } = useAuth();
     const { isTracking, startTracking, stopTracking, currentLocation, error, initLocation, trackingStartTime, totalDistance } = useGeolocation();
     const [duration, setDuration] = useState('00:00:00');
     const [isExpanded, setIsExpanded] = useState(false);
+    const [trail, setTrail] = useState<[number, number][]>([]);
 
     // Initial map location request
     useEffect(() => {
         initLocation();
+
+        // Load existing trail history
+        const loadHistory = async () => {
+            try {
+                const { data } = await location.getHistory(500);
+                if (Array.isArray(data)) {
+                    // API returns newest first (DESC), so we reverse for chronological path
+                    const points = data
+                        .reverse()
+                        .map((log: any) => [Number(log.latitude), Number(log.longitude)] as [number, number]);
+                    setTrail(points);
+                }
+            } catch (e) {
+                console.error("Failed to load trail", e);
+            }
+        };
+        loadHistory();
     }, []);
+
+    // Update trail with new locations locally
+    useEffect(() => {
+        if (currentLocation && isTracking) {
+            setTrail(prev => [...prev, [currentLocation.latitude, currentLocation.longitude]]);
+        }
+    }, [currentLocation, isTracking]);
 
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
@@ -54,6 +80,7 @@ export default function Dashboard() {
                         latitude={currentLocation.latitude}
                         longitude={currentLocation.longitude}
                         heading={currentLocation.heading}
+                        trail={trail}
                     />
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full bg-slate-200 dark:bg-slate-800 text-muted-foreground">

@@ -1,6 +1,6 @@
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -53,9 +53,10 @@ interface MapProps {
     latitude: number;
     longitude: number;
     heading?: number | null;
+    trail?: [number, number][];
 }
 
-export default function UserMap({ latitude, longitude, heading = null }: MapProps) {
+export default function UserMap({ latitude, longitude, heading = null, trail = [] }: MapProps) {
     // Default to some location/user loc logic if 0,0 provided, but usually we pass valid coords
 
     return (
@@ -70,6 +71,7 @@ export default function UserMap({ latitude, longitude, heading = null }: MapProp
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             />
+            {trail.length > 0 && <Polyline positions={trail} color="#3b82f6" weight={4} opacity={0.6} />}
             <Marker position={[latitude, longitude]} icon={createUserIcon(heading)}>
                 <Popup>
                     You are here
