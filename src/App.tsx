@@ -3,6 +3,7 @@ import RootLayout from '@/layouts/RootLayout';
 import Dashboard from '@/pages/Dashboard';
 import History from '@/pages/History';
 import Profile from '@/pages/Profile';
+import AdminMap from '@/pages/AdminMap';
 import Login from '@/pages/Login';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
@@ -31,6 +32,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/admin" element={<AdminMap />} />
           </Route>
         </Routes>
       </BrowserRouter>

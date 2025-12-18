@@ -77,9 +77,29 @@ router.get('/verify', async (req, res) => {
 
     if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
         if (err) return res.sendStatus(403);
-        res.json(user);
+
+        try {
+            const result = await pool.query(
+                'SELECT employee_id, email, first_name, last_name, role FROM employees WHERE employee_id = $1',
+                [decoded.employeeId]
+            );
+
+            if (result.rows.length === 0) return res.sendStatus(404);
+
+            const employee = result.rows[0];
+            res.json({
+                employeeId: employee.employee_id,
+                email: employee.email,
+                firstName: employee.first_name,
+                lastName: employee.last_name,
+                role: employee.role
+            });
+        } catch (error) {
+            console.error('Verify error:', error);
+            res.sendStatus(500);
+        }
     });
 });
 

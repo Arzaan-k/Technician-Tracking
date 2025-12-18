@@ -39,8 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         id: data.employeeId,
                         email: data.email,
                         role: data.role,
-                        firstName: "", // Profile fetch needed
-                        lastName: ""
+                        firstName: data.firstName,
+                        lastName: data.lastName
                     });
                 } catch (error) {
                     console.error("Auth verify failed", error);

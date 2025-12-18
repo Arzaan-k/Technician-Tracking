@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 export default function RootLayout() {
     return (
         <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
-            <main className="flex-1 overflow-hidden relative">
+            <main className="flex-1 overflow-y-auto relative">
                 <Outlet />
             </main>
 

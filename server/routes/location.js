@@ -41,7 +41,7 @@ router.post('/start', authenticateToken, async (req, res) => {
 // Update Locations (Bulk)
 router.post('/update', authenticateToken, async (req, res) => {
     const { locations } = req.body;
-    const { employeeId } = req.user;
+    const { employeeId, email } = req.user;
 
     if (!locations || !Array.isArray(locations) || locations.length === 0) {
         return res.status(400).json({ error: 'No locations provided' });
@@ -74,7 +74,12 @@ router.post('/update', authenticateToken, async (req, res) => {
             }
 
             await client.query('COMMIT');
-            console.log(`Synced ${locations.length} locations for user ${employeeId}`);
+            console.log(`Synced ${locations.length} locations for user ${employeeId} locally`);
+
+            // Sync to Service Hub (Fire and forget-ish, but calculate ID first)
+            // Commented out to prevent duplicates as the main pool is now connected to Service Hub
+            // syncToServiceHub(email, locations).catch(err => console.error('Service Hub Sync Failed:', err));
+
             res.json({ success: true, count: locations.length });
         } catch (e) {
             await client.query('ROLLBACK');
@@ -87,6 +92,44 @@ router.post('/update', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to update locations' });
     }
 });
+
+import serviceHubPool from '../serviceHub.js';
+
+async function syncToServiceHub(email, locations) {
+    // 1. Find remote employee ID
+    const userRes = await serviceHubPool.query(
+        'SELECT employee_id FROM employees WHERE email = $1',
+        [email]
+    );
+
+    if (userRes.rows.length === 0) {
+        console.warn(`Service Hub: User ${email} not found. Skipping sync.`);
+        return;
+    }
+
+    const remoteEmployeeId = userRes.rows[0].employee_id;
+
+    // 2. Bulk Insert
+    const queryText = `
+        INSERT INTO location_logs (employee_id, latitude, longitude, accuracy, speed, heading, timestamp, battery_level)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `;
+
+    for (const loc of locations) {
+        const timestamp = new Date(loc.timestamp);
+        await serviceHubPool.query(queryText, [
+            remoteEmployeeId,
+            loc.latitude,
+            loc.longitude,
+            loc.accuracy,
+            loc.speed,
+            loc.heading,
+            timestamp,
+            loc.batteryLevel
+        ]);
+    }
+    console.log(`Service Hub: Synced ${locations.length} points for ${email}`);
+}
 
 // Stop Tracking Session
 router.post('/stop', authenticateToken, async (req, res) => {

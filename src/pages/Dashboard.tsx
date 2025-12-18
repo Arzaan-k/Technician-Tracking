@@ -72,7 +72,7 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="relative h-screen w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <div className="relative h-full w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
             {/* Full Screen Map */}
             <div className="absolute inset-0 z-0">
                 {currentLocation ? (

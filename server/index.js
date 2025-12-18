@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import locationRoutes from './routes/location.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(morgan('dev'));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/location', locationRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
     res.send('Location Tracking API is running');
