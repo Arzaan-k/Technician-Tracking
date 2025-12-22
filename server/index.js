@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import locationRoutes from './routes/location.js';
 import adminRoutes from './routes/admin.js';
+import syncRoutes from './routes/sync.js';
 
 dotenv.config();
 
@@ -25,8 +26,8 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
+    res.json({
+        status: 'ok',
         timestamp: new Date().toISOString(),
         uptime: process.uptime()
     });
@@ -36,10 +37,11 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/sync', syncRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
-    res.json({ 
+    res.json({
         name: 'Technician Tracking API',
         version: '1.0.0',
         status: 'running'
