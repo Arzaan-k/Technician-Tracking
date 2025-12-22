@@ -13,7 +13,6 @@
     "build:all": "npm run build:client && npm run build:server",
     "start": "cd server && npm start",
     "start:server": "cd server && npm start",
-    "postinstall": "npm run build:server",
     "lint": "eslint .",
     "preview": "vite preview"
   },
