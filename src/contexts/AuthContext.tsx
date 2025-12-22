@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { auth } from '@/lib/api';
 
@@ -27,27 +26,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const initAuth = async () => {
             const token = localStorage.getItem('token');
-            if (token) {
-                try {
-                    // Verify token implementation needed in backend or just trust storage + 401 interceptor
-                    // For now, simpler verification
-                    const { data } = await auth.verify();
-                    // Requires transforming payload to User object if needed, or storing User in LS
-                    // Let's assume verify returns the decoded token payload which contains user info
-                    // Ideally we'd fetch profile
-                    setUser({
-                        id: data.employeeId,
-                        email: data.email,
-                        role: data.role,
-                        firstName: data.firstName,
-                        lastName: data.lastName
-                    });
-                } catch (error) {
-                    console.error("Auth verify failed", error);
-                    localStorage.removeItem('token');
-                }
+            
+            if (!token) {
+                setIsLoading(false);
+                return;
             }
-            setIsLoading(false);
+
+            try {
+                const { data } = await auth.verify();
+                setUser({
+                    id: data.employeeId,
+                    email: data.email,
+                    role: data.role,
+                    firstName: data.firstName,
+                    lastName: data.lastName
+                });
+            } catch (error: any) {
+                // Clear invalid or expired token
+                localStorage.removeItem('token');
+                
+                // Check if account was disabled
+                if (error.response?.status === 403) {
+                    // Could redirect to login with message
+                    console.warn('Account disabled or token invalid');
+                }
+            } finally {
+                setIsLoading(false);
+            }
         };
 
         initAuth();
@@ -59,12 +64,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const logout = () => {
+        // Clear all tracking state on logout
         localStorage.removeItem('token');
+        localStorage.removeItem('isTracking');
+        localStorage.removeItem('trackingStartTime');
+        localStorage.removeItem('totalDistance');
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ 
+            user, 
+            isAuthenticated: !!user, 
+            isLoading, 
+            login, 
+            logout 
+        }}>
             {children}
         </AuthContext.Provider>
     );

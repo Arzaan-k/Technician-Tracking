@@ -1,13 +1,18 @@
 {
-  "name": "employee-location-tracking-pwa",
+  "name": "technician-tracking-pwa",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n \"API,WEB\" -c \"yellow,cyan\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "cd server && npm run dev",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "concurrently \"npm run start:server\" \"npm run preview\"",
+    "start:server": "cd server && npm start",
+    "db:init": "cd server && node init-db.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -34,6 +39,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.22",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

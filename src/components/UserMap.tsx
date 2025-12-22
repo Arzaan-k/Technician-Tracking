@@ -1,6 +1,5 @@
-
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -8,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-let DefaultIcon = L.icon({
+const DefaultIcon = L.icon({
     iconUrl: icon,
     shadowUrl: iconShadow,
     iconSize: [25, 41],
@@ -17,7 +16,7 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Creating a custom pulse icon for the user location
+// Custom pulse icon for user location with optional heading indicator
 const createUserIcon = (heading: number | null) => {
     return L.divIcon({
         className: 'custom-div-icon',
@@ -27,9 +26,9 @@ const createUserIcon = (heading: number | null) => {
                 <div class="absolute w-full h-full bg-white rounded-full border-2 border-blue-500 shadow-lg flex items-center justify-center">
                     <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
                 </div>
-                ${heading !== null ? `
+                ${heading !== null && heading !== undefined ? `
                 <div class="absolute w-full h-full flex items-center justify-center" style="transform: rotate(${heading}deg);">
-                     <div class="w-0 h-0 border-l-[4px] border-l-transparent border-b-[8px] border-b-blue-600 border-r-[4px] border-r-transparent -mt-5"></div>
+                    <div class="w-0 h-0 border-l-[4px] border-l-transparent border-b-[8px] border-b-blue-600 border-r-[4px] border-r-transparent -mt-5"></div>
                 </div>
                 ` : ''}
             </div>
@@ -39,13 +38,16 @@ const createUserIcon = (heading: number | null) => {
     });
 };
 
+// Component to smoothly update map center
 function MapUpdater({ center }: { center: [number, number] }) {
     const map = useMap();
+    
     useEffect(() => {
-        map.flyTo(center, 16, {
+        map.flyTo(center, map.getZoom(), {
             duration: 1.5
         });
     }, [center, map]);
+    
     return null;
 }
 
@@ -53,16 +55,13 @@ interface MapProps {
     latitude: number;
     longitude: number;
     heading?: number | null;
-    trail?: [number, number][];
 }
 
-export default function UserMap({ latitude, longitude, heading = null, trail = [] }: MapProps) {
-    // Default to some location/user loc logic if 0,0 provided, but usually we pass valid coords
-
+export default function UserMap({ latitude, longitude, heading = null }: MapProps) {
     return (
         <MapContainer
             center={[latitude, longitude]}
-            zoom={15}
+            zoom={16}
             scrollWheelZoom={true}
             zoomControl={false}
             className="w-full h-full relative z-0"
@@ -71,11 +70,8 @@ export default function UserMap({ latitude, longitude, heading = null, trail = [
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             />
-            {trail.length > 0 && <Polyline positions={trail} color="#3b82f6" weight={4} opacity={0.6} />}
             <Marker position={[latitude, longitude]} icon={createUserIcon(heading)}>
-                <Popup>
-                    You are here
-                </Popup>
+                <Popup>Your current location</Popup>
             </Marker>
             <MapUpdater center={[latitude, longitude]} />
         </MapContainer>
