@@ -1,18 +1,21 @@
 {
-  "name": "technician-tracking-pwa",
+  "name": "employee-location-tracking-pwa",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n \"API,WEB\" -c \"yellow,cyan\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite",
     "dev:server": "cd server && npm run dev",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "start": "concurrently \"npm run start:server\" \"npm run preview\"",
+    "build": "npm run build:client",
+    "build:client": "tsc -b && vite build",
+    "build:server": "cd server && npm install --production=false",
+    "build:all": "npm run build:client && npm run build:server",
+    "start": "cd server && npm start",
     "start:server": "cd server && npm start",
-    "db:init": "cd server && node init-db.js"
+    "postinstall": "npm run build:server",
+    "lint": "eslint .",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

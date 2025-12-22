@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -8,67 +9,61 @@ import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
+// Check for required environment variables
+if (!process.env.JWT_SECRET) {
+    console.error('ERROR: JWT_SECRET environment variable is not set!');
+    console.error('Please create a .env file in the server directory with JWT_SECRET=<your-secret-key>');
+    process.exit(1);
+}
+
+if (!process.env.DATABASE_URL) {
+    console.error('ERROR: DATABASE_URL environment variable is not set!');
+    console.error('Please create a .env file in the server directory with DATABASE_URL=<your-database-url>');
+    process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true
-}));
-app.use(express.json({ limit: '1mb' }));
+// CORS configuration
+const corsOptions = {
+    origin: process.env.FRONTEND_URL 
+        ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+        : process.env.NODE_ENV === 'production' 
+            ? false  // In production, require explicit FRONTEND_URL
+            : '*',  // In development, allow all
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
 
-// Only use morgan in development
-if (process.env.NODE_ENV !== 'production') {
-    app.use(morgan('dev'));
-}
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
+app.use(express.json());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/admin', adminRoutes);
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({ 
-        name: 'Technician Tracking API',
+        message: 'Location Tracking API is running',
         version: '1.0.0',
-        status: 'running'
+        endpoints: {
+            auth: '/api/auth',
+            location: '/api/location',
+            admin: '/api/admin'
+        }
     });
 });
 
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({ error: 'Endpoint not found' });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully...');
-    process.exit(0);
-});
-
-process.on('SIGINT', () => {
-    console.log('SIGINT received, shutting down gracefully...');
-    process.exit(0);
-});
-
 app.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
-    console.log(`📍 Tracking API ready at http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });

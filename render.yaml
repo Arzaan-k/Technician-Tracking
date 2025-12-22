@@ -1,0 +1,31 @@
+services:
+  # Backend API Service
+  - type: web
+    name: loctrack-backend
+    env: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: DATABASE_URL
+        sync: false  # Set this in Render dashboard
+      - key: FRONTEND_URL
+        sync: false  # Will be set to frontend URL after deployment
+    healthCheckPath: /health
+
+  # Frontend Static Site
+  - type: web
+    name: loctrack-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false  # Will be set to backend URL after deployment
+
