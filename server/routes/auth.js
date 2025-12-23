@@ -32,12 +32,23 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
+        // Check if JWT_SECRET is set
+        if (!process.env.JWT_SECRET) {
+            console.error('JWT_SECRET is not set in environment variables');
+            return res.status(500).json({ error: 'Server configuration error: JWT_SECRET missing' });
+        }
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
         const result = await pool.query(
             'SELECT employee_id, email, first_name, last_name, role, password_hash FROM employees WHERE email = $1',
             [email]
         );
 
         if (result.rows.length === 0) {
+            console.log(`Login attempt failed: User not found for email ${email}`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -45,6 +56,7 @@ router.post('/login', async (req, res) => {
         const isValidPassword = await bcrypt.compare(password, employee.password_hash);
 
         if (!isValidPassword) {
+            console.log(`Login attempt failed: Invalid password for email ${email}`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -54,6 +66,7 @@ router.post('/login', async (req, res) => {
             { expiresIn: '24h' }
         );
 
+        console.log(`Login successful for email ${email}`);
         res.json({
             token,
             user: {
@@ -66,7 +79,7 @@ router.post('/login', async (req, res) => {
         });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: error.message || 'Internal server error' });
     }
 });
 

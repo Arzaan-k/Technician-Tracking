@@ -40,13 +40,33 @@ export default defineConfig({
         ]
       },
       devOptions: {
-        enabled: true
+        enabled: false  // Disabled in dev to prevent caching issues
       }
     })
   ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  server: {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
+    hmr: {
+      overlay: true,
+    },
+  },
+  optimizeDeps: {
+    force: true,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
     },
   },
 })

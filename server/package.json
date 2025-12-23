@@ -7,7 +7,11 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "users:list": "node list-all-users.js",
+    "users:add": "node add-service-hub-user.js",
+    "users:sync": "node sync-service-hub-users.js",
+    "test:login": "node test-login.js"
   },
   "dependencies": {
     "@types/node": "^25.0.1",
@@ -21,6 +25,7 @@
     "pg": "^8.16.3"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.11"
   }
 }

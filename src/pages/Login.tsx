@@ -32,7 +32,9 @@ export default function Login() {
             login(res.data.token, res.data.user);
             navigate('/');
         } catch (err: any) {
-            setError(err.response?.data?.error || 'Login failed');
+            console.error('Login error:', err);
+            const errorMessage = err.response?.data?.error || err.message || 'Login failed. Please check your credentials and try again.';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

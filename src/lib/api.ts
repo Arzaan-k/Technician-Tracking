@@ -1,7 +1,9 @@
 
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+// In production, use relative URL. In development, use localhost
+const API_URL = import.meta.env.VITE_API_URL || 
+    (import.meta.env.PROD ? '/api' : 'http://localhost:3000/api');
 
 const api = axios.create({
     baseURL: API_URL,
@@ -19,6 +21,18 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Handle response errors
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.code === 'ECONNREFUSED' || error.message === 'Network Error') {
+            console.error('Cannot connect to server. Make sure the backend server is running on http://localhost:3000');
+            error.message = 'Cannot connect to server. Please ensure the backend is running.';
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const auth = {
     login: (credentials: any) => api.post('/auth/login', credentials),
     register: (data: any) => api.post('/auth/register', data),
@@ -30,6 +44,8 @@ export const location = {
     stopTracking: (summary?: { distance: number }) => api.post('/location/stop', summary),
     updateLocation: (locations: any[]) => api.post('/location/update', { locations }),
     getHistory: (limit?: number) => api.get('/location/history', { params: { limit } }),
+    getSessions: (limit?: number) => api.get('/location/sessions', { params: { limit } }),
+    getSessionDetails: (sessionId: string) => api.get(`/location/sessions/${sessionId}`),
 };
 
 export default api;
