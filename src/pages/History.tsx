@@ -201,7 +201,7 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
             setIsLoadingRoute(true);
             
             location.getSessionDetails(session.session_id)
-                .then(async (res) => {
+                .then(async (res: any) => {
                     if (!isMounted) return;
                     setRouteData(res.data);
                     
