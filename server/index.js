@@ -62,7 +62,8 @@ app.get('/api/health', (req, res) => {
 app.use(express.static(path.join(__dirname, '../dist')));
 
 // Catch-all handler: send back React's index.html for any non-API routes
-app.get('*', (req, res) => {
+// In Express 5, we use a middleware function instead of '*'
+app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
