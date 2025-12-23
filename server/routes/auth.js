@@ -1,14 +1,14 @@
 import express from 'express';
-import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import pool from '../db.js';
+import serviceHubClient from '../serviceHubClient.js';
 
 const router = express.Router();
 
 /**
  * POST /api/auth/login
- * Authenticate technician with email/phone + password
- * Checks is_active status to prevent disabled users from logging in
+ * Proxy login request to Service Hub (single source of truth)
+ * Service Hub validates credentials and issues JWT
  */
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
@@ -18,101 +18,35 @@ router.post('/login', async (req, res) => {
     }
 
     try {
-        // First, check what columns exist in employees table
-        const columnsCheck = await pool.query(`
-            SELECT column_name FROM information_schema.columns 
-            WHERE table_name = 'employees'
-        `);
-        const columns = columnsCheck.rows.map(r => r.column_name);
-        console.log('📋 Available columns in employees:', columns.join(', '));
+        console.log(`🔄 Proxying login request to Service Hub for: ${email}`);
 
-        // Determine password column name (could be password_hash, password, or hashed_password)
-        const passwordColumn = columns.includes('password_hash') ? 'password_hash' 
-            : columns.includes('password') ? 'password'
-            : columns.includes('hashed_password') ? 'hashed_password' : null;
+        // Forward authentication to Service Hub
+        const authResult = await serviceHubClient.login(email, password);
 
-        if (!passwordColumn) {
-            console.error('❌ No password column found in employees table!');
-            return res.status(500).json({ error: 'Server configuration error' });
-        }
+        console.log(`✅ Service Hub authenticated user: ${authResult.user.email}`);
 
-        // Query supports login via email or phone
-        const result = await pool.query(
-            `SELECT employee_id, email, phone, first_name, last_name, role, ${passwordColumn} as password_hash, is_active 
-             FROM employees 
-             WHERE LOWER(email) = LOWER($1) OR phone = $1`,
-            [email]
-        );
+        // Return Service Hub response directly to frontend
+        // Token is issued by Service Hub, not by this system
+        res.json(authResult);
 
-        console.log(`🔍 Login attempt for: ${email}`);
-        console.log(`📊 Found ${result.rows.length} matching user(s)`);
-
-        if (result.rows.length === 0) {
-            // List all emails in DB for debugging
-            const allEmails = await pool.query('SELECT email FROM employees LIMIT 10');
-            console.log('📧 Sample emails in DB:', allEmails.rows.map(r => r.email).join(', '));
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const employee = result.rows[0];
-        console.log(`👤 Found user: ${employee.email}, role: ${employee.role}, active: ${employee.is_active}`);
-
-        // Check if account is active
-        if (employee.is_active === false) {
-            return res.status(403).json({ error: 'Account is disabled. Please contact your administrator.' });
-        }
-
-        // Check if password hash exists
-        if (!employee.password_hash) {
-            console.error('❌ User has no password hash set!');
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // Verify password
-        console.log('🔐 Checking password...');
-        const isValidPassword = await bcrypt.compare(password, employee.password_hash);
-        console.log(`🔐 Password valid: ${isValidPassword}`);
-        
-        if (!isValidPassword) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // Update last login timestamp
-        await pool.query(
-            'UPDATE employees SET last_login = CURRENT_TIMESTAMP WHERE employee_id = $1',
-            [employee.employee_id]
-        );
-
-        // Generate JWT token
-        const token = jwt.sign(
-            { 
-                employeeId: employee.employee_id, 
-                email: employee.email, 
-                role: employee.role 
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
-        );
-
-        res.json({
-            token,
-            user: {
-                id: employee.employee_id,
-                email: employee.email,
-                firstName: employee.first_name,
-                lastName: employee.last_name,
-                role: employee.role
-            }
-        });
     } catch (error) {
-        console.error('Login error:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Login proxy error:', error.message);
+
+        // Return appropriate error status
+        if (error.message.includes('Invalid credentials') || error.message.includes('disabled')) {
+            return res.status(401).json({ error: error.message });
+        } else if (error.message.includes('unreachable')) {
+            return res.status(503).json({ error: 'Authentication service unavailable. Please try again later.' });
+        } else {
+            return res.status(500).json({ error: 'Authentication failed' });
+        }
     }
 });
 
 /**
  * GET /api/auth/verify
- * Verify JWT token and return user info
+ * Verify JWT token locally using shared JWT_SECRET
+ * Checks user status in local database for immediate access control
  */
 router.get('/verify', async (req, res) => {
     const authHeader = req.headers['authorization'];
@@ -123,11 +57,20 @@ router.get('/verify', async (req, res) => {
     }
 
     try {
+        // Verify JWT using shared secret (same as Service Hub)
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+        // Extract userId from token (Service Hub uses 'userId' field)
+        const userId = decoded.userId || decoded.employeeId;
+
+        if (!userId) {
+            return res.status(403).json({ error: 'Invalid token format' });
+        }
+
+        // Check user status in local database
         const result = await pool.query(
             'SELECT employee_id, email, first_name, last_name, role, is_active FROM employees WHERE employee_id = $1',
-            [decoded.employeeId]
+            [userId]
         );
 
         if (result.rows.length === 0) {
@@ -141,11 +84,14 @@ router.get('/verify', async (req, res) => {
             return res.status(403).json({ error: 'Account is disabled' });
         }
 
+        // Return user info with standardized field names
         res.json({
-            employeeId: employee.employee_id,
+            userId: employee.employee_id,
+            employeeId: employee.employee_id, // Keep for backward compatibility
             email: employee.email,
             firstName: employee.first_name,
             lastName: employee.last_name,
+            name: `${employee.first_name} ${employee.last_name}`,
             role: employee.role
         });
     } catch (error) {
@@ -153,46 +99,109 @@ router.get('/verify', async (req, res) => {
             return res.status(403).json({ error: 'Invalid or expired token' });
         }
         console.error('Verify error:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Authentication failed' });
     }
 });
 
 /**
- * POST /api/auth/register
- * Register a new technician (Admin only in production)
- * This endpoint is for initial setup/testing
+ * GET /api/auth/me
+ * Get current user information from JWT token
+ * Alternative endpoint for token validation
  */
-router.post('/register', async (req, res) => {
-    const { email, password, firstName, lastName, role, phone } = req.body;
+router.get('/me', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    if (!email || !password || !firstName || !lastName) {
-        return res.status(400).json({ error: 'Missing required fields' });
+    if (!token) {
+        return res.status(401).json({ error: 'Token required' });
     }
 
     try {
-        // Check if user already exists
-        const existing = await pool.query(
-            'SELECT employee_id FROM employees WHERE email = $1',
-            [email]
-        );
-
-        if (existing.rows.length > 0) {
-            return res.status(409).json({ error: 'User with this email already exists' });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId || decoded.employeeId;
 
         const result = await pool.query(
-            `INSERT INTO employees (email, phone, password_hash, first_name, last_name, role, is_active)
-             VALUES ($1, $2, $3, $4, $5, $6, true)
-             RETURNING employee_id, email, first_name, last_name, role`,
-            [email, phone || null, hashedPassword, firstName, lastName, role || 'technician']
+            'SELECT employee_id, email, first_name, last_name, role, is_active FROM employees WHERE employee_id = $1',
+            [userId]
         );
 
-        res.status(201).json(result.rows[0]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const employee = result.rows[0];
+
+        if (employee.is_active === false) {
+            return res.status(403).json({ error: 'Account is disabled' });
+        }
+
+        res.json({
+            userId: employee.employee_id,
+            email: employee.email,
+            firstName: employee.first_name,
+            lastName: employee.last_name,
+            name: `${employee.first_name} ${employee.last_name}`,
+            role: employee.role,
+            isActive: employee.is_active
+        });
     } catch (error) {
-        console.error('Registration error:', error.message);
-        res.status(500).json({ error: 'Registration failed' });
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+        console.error('Get user error:', error.message);
+        res.status(500).json({ error: 'Failed to get user information' });
+    }
+});
+
+/**
+ * POST /api/auth/sso
+ * Single Sign-On endpoint - accepts JWT token from URL parameter
+ * Validates token and returns user info for auto-login
+ */
+router.post('/sso', async (req, res) => {
+    const { token } = req.body;
+
+    if (!token) {
+        return res.status(400).json({ error: 'Token required' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId || decoded.employeeId;
+
+        const result = await pool.query(
+            'SELECT employee_id, email, first_name, last_name, role, is_active FROM employees WHERE employee_id = $1',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const employee = result.rows[0];
+
+        if (employee.is_active === false) {
+            return res.status(403).json({ error: 'Account is disabled' });
+        }
+
+        // Return token and user info for SSO login
+        res.json({
+            token,
+            user: {
+                id: employee.employee_id,
+                email: employee.email,
+                firstName: employee.first_name,
+                lastName: employee.last_name,
+                name: `${employee.first_name} ${employee.last_name}`,
+                role: employee.role
+            }
+        });
+    } catch (error) {
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+        console.error('SSO error:', error.message);
+        res.status(500).json({ error: 'SSO authentication failed' });
     }
 });
 

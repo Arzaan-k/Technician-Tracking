@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireTechnician } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -8,8 +8,8 @@ const router = express.Router();
  * POST /api/location/start
  * Start a new tracking session for the authenticated technician
  */
-router.post('/start', authenticateToken, async (req, res) => {
-    const { employeeId } = req.user;
+router.post('/start', authenticateToken, requireTechnician, async (req, res) => {
+    const { userId } = req.user;
 
     try {
         // Check for existing active session and close it
@@ -28,9 +28,9 @@ router.post('/start', authenticateToken, async (req, res) => {
             [employeeId]
         );
 
-        res.json({ 
-            success: true, 
-            session: result.rows[0] 
+        res.json({
+            success: true,
+            session: result.rows[0]
         });
     } catch (error) {
         console.error('Start tracking error:', error.message);
@@ -42,9 +42,9 @@ router.post('/start', authenticateToken, async (req, res) => {
  * POST /api/location/update
  * Bulk update location logs for the authenticated technician
  */
-router.post('/update', authenticateToken, async (req, res) => {
+router.post('/update', authenticateToken, requireTechnician, async (req, res) => {
     const { locations } = req.body;
-    const { employeeId } = req.user;
+    const { userId } = req.user;
 
     if (!locations || !Array.isArray(locations) || locations.length === 0) {
         return res.status(400).json({ error: 'No locations provided' });
@@ -72,7 +72,7 @@ router.post('/update', authenticateToken, async (req, res) => {
             const timestamp = loc.timestamp ? new Date(loc.timestamp) : new Date();
 
             await client.query(queryText, [
-                employeeId,
+                userId,
                 loc.latitude,
                 loc.longitude,
                 loc.accuracy || null,
@@ -89,14 +89,14 @@ router.post('/update', authenticateToken, async (req, res) => {
             `UPDATE tracking_sessions 
              SET total_locations = total_locations + $2, updated_at = CURRENT_TIMESTAMP
              WHERE employee_id = $1 AND status = 'active'`,
-            [employeeId, locations.length]
+            [userId, locations.length]
         );
 
         await client.query('COMMIT');
 
-        res.json({ 
-            success: true, 
-            count: locations.length 
+        res.json({
+            success: true,
+            count: locations.length
         });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -111,8 +111,8 @@ router.post('/update', authenticateToken, async (req, res) => {
  * POST /api/location/stop
  * Stop the active tracking session
  */
-router.post('/stop', authenticateToken, async (req, res) => {
-    const { employeeId } = req.user;
+router.post('/stop', authenticateToken, requireTechnician, async (req, res) => {
+    const { userId } = req.user;
     const { distance } = req.body;
 
     try {
@@ -124,19 +124,19 @@ router.post('/stop', authenticateToken, async (req, res) => {
                  total_duration = CURRENT_TIMESTAMP - start_time
              WHERE employee_id = $1 AND status = 'active'
              RETURNING session_id, start_time, end_time, total_distance, total_locations`,
-            [employeeId, distance || 0]
+            [userId, distance || 0]
         );
 
         if (result.rows.length === 0) {
-            return res.json({ 
-                success: true, 
-                message: 'No active session found' 
+            return res.json({
+                success: true,
+                message: 'No active session found'
             });
         }
 
-        res.json({ 
-            success: true, 
-            session: result.rows[0] 
+        res.json({
+            success: true,
+            session: result.rows[0]
         });
     } catch (error) {
         console.error('Stop tracking error:', error.message);
@@ -148,8 +148,8 @@ router.post('/stop', authenticateToken, async (req, res) => {
  * GET /api/location/history
  * Get location history for the authenticated technician
  */
-router.get('/history', authenticateToken, async (req, res) => {
-    const { employeeId } = req.user;
+router.get('/history', authenticateToken, requireTechnician, async (req, res) => {
+    const { userId } = req.user;
     const limit = Math.min(parseInt(req.query.limit) || 50, 500);
 
     try {
@@ -159,7 +159,7 @@ router.get('/history', authenticateToken, async (req, res) => {
              WHERE employee_id = $1 
              ORDER BY timestamp DESC 
              LIMIT $2`,
-            [employeeId, limit]
+            [userId, limit]
         );
 
         res.json(result.rows);
@@ -173,8 +173,8 @@ router.get('/history', authenticateToken, async (req, res) => {
  * GET /api/location/session
  * Get current active session status
  */
-router.get('/session', authenticateToken, async (req, res) => {
-    const { employeeId } = req.user;
+router.get('/session', authenticateToken, requireTechnician, async (req, res) => {
+    const { userId } = req.user;
 
     try {
         const result = await pool.query(
@@ -183,19 +183,19 @@ router.get('/session', authenticateToken, async (req, res) => {
              WHERE employee_id = $1 AND status = 'active'
              ORDER BY start_time DESC
              LIMIT 1`,
-            [employeeId]
+            [userId]
         );
 
         if (result.rows.length === 0) {
-            return res.json({ 
-                active: false, 
-                session: null 
+            return res.json({
+                active: false,
+                session: null
             });
         }
 
-        res.json({ 
-            active: true, 
-            session: result.rows[0] 
+        res.json({
+            active: true,
+            session: result.rows[0]
         });
     } catch (error) {
         console.error('Session status error:', error.message);
@@ -207,8 +207,8 @@ router.get('/session', authenticateToken, async (req, res) => {
  * GET /api/location/sessions
  * Get tracking session history with start/end locations
  */
-router.get('/sessions', authenticateToken, async (req, res) => {
-    const { employeeId } = req.user;
+router.get('/sessions', authenticateToken, requireTechnician, async (req, res) => {
+    const { userId } = req.user;
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
 
     try {
@@ -226,7 +226,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
              WHERE ts.employee_id = $1 
              ORDER BY ts.start_time DESC 
              LIMIT $2`,
-            [employeeId, limit]
+            [userId, limit]
         );
 
         // For each session, get start and end locations
@@ -240,7 +240,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
                    AND timestamp <= COALESCE($3, CURRENT_TIMESTAMP)
                  ORDER BY timestamp ASC 
                  LIMIT 1`,
-                [employeeId, session.start_time, session.end_time]
+                [userId, session.start_time, session.end_time]
             );
 
             // Get last location (end)
@@ -252,7 +252,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
                    AND timestamp <= COALESCE($3, CURRENT_TIMESTAMP)
                  ORDER BY timestamp DESC 
                  LIMIT 1`,
-                [employeeId, session.start_time, session.end_time]
+                [userId, session.start_time, session.end_time]
             );
 
             // Calculate stationary vs moving time
@@ -266,7 +266,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
                  WHERE employee_id = $1 
                    AND timestamp >= $2 
                    AND timestamp <= COALESCE($3, CURRENT_TIMESTAMP)`,
-                [employeeId, session.start_time, session.end_time]
+                [userId, session.start_time, session.end_time]
             );
 
             const stats = movementStats.rows[0];
@@ -295,8 +295,8 @@ router.get('/sessions', authenticateToken, async (req, res) => {
  * GET /api/location/sessions/:sessionId
  * Get detailed session data with all location points for route display
  */
-router.get('/sessions/:sessionId', authenticateToken, async (req, res) => {
-    const { employeeId } = req.user;
+router.get('/sessions/:sessionId', authenticateToken, requireTechnician, async (req, res) => {
+    const { userId } = req.user;
     const { sessionId } = req.params;
 
     try {
@@ -305,7 +305,7 @@ router.get('/sessions/:sessionId', authenticateToken, async (req, res) => {
             `SELECT session_id, start_time, end_time, status, total_distance, total_locations
              FROM tracking_sessions 
              WHERE session_id = $1 AND employee_id = $2`,
-            [sessionId, employeeId]
+            [sessionId, userId]
         );
 
         if (sessionResult.rows.length === 0) {
@@ -333,7 +333,7 @@ router.get('/sessions/:sessionId', authenticateToken, async (req, res) => {
 
         for (const loc of locations.rows) {
             const isStationary = !loc.speed || loc.speed < STOP_THRESHOLD;
-            
+
             if (isStationary) {
                 if (!currentStop) {
                     currentStop = {
@@ -353,7 +353,7 @@ router.get('/sessions/:sessionId', authenticateToken, async (req, res) => {
                     // Calculate average position for the stop
                     const avgLat = currentStop.points.reduce((sum, p) => sum + parseFloat(p.latitude), 0) / currentStop.points.length;
                     const avgLon = currentStop.points.reduce((sum, p) => sum + parseFloat(p.longitude), 0) / currentStop.points.length;
-                    
+
                     stops.push({
                         latitude: avgLat,
                         longitude: avgLon,
@@ -372,7 +372,7 @@ router.get('/sessions/:sessionId', authenticateToken, async (req, res) => {
             if (stopDuration >= MIN_STOP_DURATION) {
                 const avgLat = currentStop.points.reduce((sum, p) => sum + parseFloat(p.latitude), 0) / currentStop.points.length;
                 const avgLon = currentStop.points.reduce((sum, p) => sum + parseFloat(p.longitude), 0) / currentStop.points.length;
-                
+
                 stops.push({
                     latitude: avgLat,
                     longitude: avgLon,
