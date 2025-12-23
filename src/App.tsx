@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import RootLayout from '@/layouts/RootLayout';
-import Dashboard from '@/pages/Dashboard';
+import Dashboard from '@/pages/DashboardWithBackground';
 import History from '@/pages/History';
 import Profile from '@/pages/Profile';
 import AdminMap from '@/pages/AdminMap';
