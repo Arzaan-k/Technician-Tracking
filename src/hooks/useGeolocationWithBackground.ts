@@ -177,6 +177,7 @@ export function useGeolocation(): UseGeolocationReturn {
             // Request background sync permission
             if ('sync' in registration) {
                 try {
+                    // @ts-ignore - Background Sync API is not in standard TypeScript types
                     await registration.sync.register('location-sync');
                     console.log('Background sync registered');
                 } catch (err) {
