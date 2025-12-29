@@ -9,20 +9,20 @@ const router = express.Router();
  * Start a new tracking session for the authenticated technician
  */
 router.post('/start', authenticateToken, async (req, res) => {
-    const { employeeId } = req.user;
+    const { employeeId } = req.user; // employeeId is actually user.id from Service Hub
 
     try {
         // Check for existing active session and close it
         await pool.query(
             `UPDATE tracking_sessions 
              SET end_time = CURRENT_TIMESTAMP, status = 'completed' 
-             WHERE employee_id = $1 AND status = 'active'`,
+             WHERE user_id = $1 AND status = 'active'`,
             [employeeId]
         );
 
         // Create new session
         const result = await pool.query(
-            `INSERT INTO tracking_sessions (employee_id, start_time, status)
+            `INSERT INTO tracking_sessions (user_id, start_time, status)
              VALUES ($1, CURRENT_TIMESTAMP, 'active')
              RETURNING session_id, start_time`,
             [employeeId]
@@ -64,7 +64,7 @@ router.post('/update', authenticateToken, async (req, res) => {
 
         const queryText = `
             INSERT INTO location_logs 
-            (employee_id, latitude, longitude, accuracy, speed, heading, timestamp, battery_level, network_status)
+            (user_id, latitude, longitude, accuracy, speed, heading, timestamp, battery_level, network_status)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `;
 
@@ -88,7 +88,7 @@ router.post('/update', authenticateToken, async (req, res) => {
         await client.query(
             `UPDATE tracking_sessions 
              SET total_locations = total_locations + $2, updated_at = CURRENT_TIMESTAMP
-             WHERE employee_id = $1 AND status = 'active'`,
+             WHERE user_id = $1 AND status = 'active'`,
             [employeeId, locations.length]
         );
 
@@ -122,7 +122,7 @@ router.post('/stop', authenticateToken, async (req, res) => {
                  status = 'completed', 
                  total_distance = $2,
                  total_duration = CURRENT_TIMESTAMP - start_time
-             WHERE employee_id = $1 AND status = 'active'
+             WHERE user_id = $1 AND status = 'active'
              RETURNING session_id, start_time, end_time, total_distance, total_locations`,
             [employeeId, distance || 0]
         );
@@ -156,7 +156,7 @@ router.get('/history', authenticateToken, async (req, res) => {
         const result = await pool.query(
             `SELECT id, latitude, longitude, accuracy, speed, heading, timestamp, battery_level, network_status
              FROM location_logs 
-             WHERE employee_id = $1 
+             WHERE user_id = $1 
              ORDER BY timestamp DESC 
              LIMIT $2`,
             [employeeId, limit]
@@ -180,7 +180,7 @@ router.get('/session', authenticateToken, async (req, res) => {
         const result = await pool.query(
             `SELECT session_id, start_time, status, total_distance, total_locations
              FROM tracking_sessions 
-             WHERE employee_id = $1 AND status = 'active'
+             WHERE user_id = $1 AND status = 'active'
              ORDER BY start_time DESC
              LIMIT 1`,
             [employeeId]
@@ -223,7 +223,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
                 ts.total_locations,
                 EXTRACT(EPOCH FROM (COALESCE(ts.end_time, CURRENT_TIMESTAMP) - ts.start_time)) as duration_seconds
              FROM tracking_sessions ts
-             WHERE ts.employee_id = $1 
+             WHERE ts.user_id = $1 
              ORDER BY ts.start_time DESC 
              LIMIT $2`,
             [employeeId, limit]
@@ -235,7 +235,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
             const startLoc = await pool.query(
                 `SELECT latitude, longitude, timestamp 
                  FROM location_logs 
-                 WHERE employee_id = $1 
+                 WHERE user_id = $1 
                    AND timestamp >= $2 
                    AND timestamp <= COALESCE($3, CURRENT_TIMESTAMP)
                  ORDER BY timestamp ASC 
@@ -247,7 +247,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
             const endLoc = await pool.query(
                 `SELECT latitude, longitude, timestamp 
                  FROM location_logs 
-                 WHERE employee_id = $1 
+                 WHERE user_id = $1 
                    AND timestamp >= $2 
                    AND timestamp <= COALESCE($3, CURRENT_TIMESTAMP)
                  ORDER BY timestamp DESC 
@@ -263,7 +263,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
                     AVG(speed) FILTER (WHERE speed >= 0.5) as avg_speed,
                     MAX(speed) as max_speed
                  FROM location_logs 
-                 WHERE employee_id = $1 
+                 WHERE user_id = $1 
                    AND timestamp >= $2 
                    AND timestamp <= COALESCE($3, CURRENT_TIMESTAMP)`,
                 [employeeId, session.start_time, session.end_time]
@@ -304,7 +304,7 @@ router.get('/sessions/:sessionId', authenticateToken, async (req, res) => {
         const sessionResult = await pool.query(
             `SELECT session_id, start_time, end_time, status, total_distance, total_locations
              FROM tracking_sessions 
-             WHERE session_id = $1 AND employee_id = $2`,
+             WHERE session_id = $1 AND user_id = $2`,
             [sessionId, employeeId]
         );
 
@@ -318,7 +318,7 @@ router.get('/sessions/:sessionId', authenticateToken, async (req, res) => {
         const locations = await pool.query(
             `SELECT latitude, longitude, accuracy, speed, heading, timestamp, battery_level
              FROM location_logs 
-             WHERE employee_id = $1 
+             WHERE user_id = $1 
                AND timestamp >= $2 
                AND timestamp <= COALESCE($3, CURRENT_TIMESTAMP)
              ORDER BY timestamp ASC`,

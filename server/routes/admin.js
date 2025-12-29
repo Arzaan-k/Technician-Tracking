@@ -6,25 +6,24 @@ const router = express.Router();
 
 /**
  * GET /api/admin/technicians
- * Get all technicians for the admin map (from Service Hub's unified tables)
+ * Get all technicians for the admin map (from Service Hub's users table)
  */
 router.get('/technicians', authenticateToken, async (req, res) => {
     try {
-        // Query Service Hub's technicians table with user info
+        // Query Service Hub's users table directly
         const result = await pool.query(`
             SELECT 
-                t.id as technician_id,
-                t.user_id,
+                u.id as technician_id,
+                u.id as user_id,
                 u.name,
                 u.email,
                 u.role,
                 u.is_active,
-                t.status as technician_status,
-                t.latitude as last_lat,
-                t.longitude as last_lng,
-                t.location_address
-            FROM technicians t
-            JOIN users u ON t.user_id = u.id
+                'active' as technician_status,
+                NULL as last_lat,
+                NULL as last_lng,
+                NULL as location_address
+            FROM users u
             WHERE u.is_active = true
               AND u.role IN ('technician', 'senior_technician')
             ORDER BY u.name
@@ -40,36 +39,34 @@ router.get('/technicians', authenticateToken, async (req, res) => {
 /**
  * GET /api/admin/live-map
  * Get live locations for all active technicians
- * Uses Service Hub's location_logs table (employee_id references technicians.id as varchar)
+ * Uses Service Hub's location_logs table (user_id references users.id)
  */
 router.get('/live-map', authenticateToken, async (req, res) => {
     try {
         // Get technician IDs from query param for filtering (optional)
         const technicianIds = req.query.ids ? req.query.ids.split(',') : null;
 
-        // Query that properly handles varchar IDs
+        // Query that gets latest location for each user directly
         let query = `
-            SELECT DISTINCT ON (t.id)
-                t.id as technician_id,
-                t.user_id,
+            SELECT DISTINCT ON (u.id)
+                u.id as technician_id,
+                u.id as user_id,
                 u.name,
                 u.email,
                 u.role,
-                COALESCE(l.latitude, t.latitude) as latitude,
-                COALESCE(l.longitude, t.longitude) as longitude,
+                l.latitude,
+                l.longitude,
                 l.speed,
                 l.battery_level,
                 l.accuracy,
-                COALESCE(l.address, t.location_address) as address,
                 l.timestamp as last_seen,
                 CASE 
                     WHEN l.timestamp > NOW() - INTERVAL '5 minutes' THEN 'online'
                     WHEN l.timestamp > NOW() - INTERVAL '30 minutes' THEN 'idle'
                     ELSE 'offline'
                 END as status
-            FROM technicians t
-            JOIN users u ON t.user_id = u.id
-            LEFT JOIN location_logs l ON l.employee_id = t.id
+            FROM users u
+            LEFT JOIN location_logs l ON l.user_id = u.id
             WHERE u.is_active = true
               AND u.role IN ('technician', 'senior_technician')
         `;
@@ -77,17 +74,17 @@ router.get('/live-map', authenticateToken, async (req, res) => {
         const params = [];
 
         if (technicianIds && technicianIds.length > 0) {
-            query += ` AND t.id = ANY($1::varchar[])`;
+            query += ` AND u.id = ANY($1::varchar[])`;
             params.push(technicianIds);
         }
 
         query += `
-            ORDER BY t.id, l.timestamp DESC NULLS LAST
+            ORDER BY u.id, l.timestamp DESC NULLS LAST
         `;
 
         const result = await pool.query(query, params);
 
-        // Map results, include technicians with static location from technicians table
+        // Map results, only include technicians with location data
         const technicians = result.rows
             .filter(row => row.latitude && row.longitude)
             .map(row => ({
@@ -100,7 +97,7 @@ router.get('/live-map', authenticateToken, async (req, res) => {
                 speed: row.speed ? Math.round(parseFloat(row.speed) * 3.6) : 0,
                 battery: row.battery_level || null,
                 accuracy: row.accuracy ? Math.round(parseFloat(row.accuracy)) : null,
-                address: row.address || null,
+                address: null,
                 lastSeen: row.last_seen || new Date().toISOString(),
                 status: row.last_seen ? row.status : 'offline'
             }));
@@ -123,9 +120,9 @@ router.get('/technician/:id/history', authenticateToken, async (req, res) => {
 
     try {
         let query = `
-            SELECT id, latitude, longitude, accuracy, speed, timestamp, battery_level, address
+            SELECT id, latitude, longitude, accuracy, speed, timestamp, battery_level
             FROM location_logs 
-            WHERE employee_id = $1
+            WHERE user_id = $1
         `;
         const params = [id];
 
@@ -154,18 +151,16 @@ router.get('/stats', authenticateToken, async (req, res) => {
         // Get total technicians
         const totalResult = await pool.query(`
             SELECT COUNT(*) as total
-            FROM technicians t
-            JOIN users u ON t.user_id = u.id
+            FROM users u
             WHERE u.is_active = true
               AND u.role IN ('technician', 'senior_technician')
         `);
 
         // Get online technicians (active in last 5 minutes)
         const onlineResult = await pool.query(`
-            SELECT COUNT(DISTINCT t.id) as online
-            FROM technicians t
-            JOIN users u ON t.user_id = u.id
-            JOIN location_logs l ON l.employee_id = t.id
+            SELECT COUNT(DISTINCT u.id) as online
+            FROM users u
+            JOIN location_logs l ON l.user_id = u.id
             WHERE u.is_active = true
               AND u.role IN ('technician', 'senior_technician')
               AND l.timestamp > NOW() - INTERVAL '5 minutes'

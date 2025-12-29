@@ -22,7 +22,7 @@ export const authenticateToken = (req, res, next) => {
             // Verify user still exists and is active in Service Hub's users table
             const result = await pool.query(
                 'SELECT id, email, name, role, is_active FROM users WHERE id = $1',
-                [decoded.employeeId]
+                [decoded.employeeId || decoded.userId]
             );
 
             if (result.rows.length === 0) {
@@ -35,21 +35,16 @@ export const authenticateToken = (req, res, next) => {
                 return res.status(403).json({ error: 'Account is disabled' });
             }
 
-            // Get technician ID if user is a technician (for location logging)
-            let technicianId = null;
-            if (['technician', 'senior_technician'].includes(user.role)) {
-                const techResult = await pool.query(
-                    'SELECT id FROM technicians WHERE user_id = $1',
-                    [user.id]
-                );
-                if (techResult.rows.length > 0) {
-                    technicianId = techResult.rows[0].id;
-                }
+            // Only allow specific roles to access LocTrack
+            const allowedRoles = ['technician', 'senior_technician', 'admin', 'super_admin', 'coordinator'];
+            if (!allowedRoles.includes(user.role)) {
+                return res.status(403).json({ error: 'Insufficient permissions to access Location Tracking' });
             }
 
+            // Use user.id directly for everything (no separate employee table)
             req.user = {
-                employeeId: technicianId || user.id, // Use technician ID if available, else user ID
                 userId: user.id,
+                employeeId: user.id, // Keep for backward compatibility
                 email: user.email,
                 name: user.name,
                 role: user.role
