@@ -16,10 +16,9 @@ if (!process.env.JWT_SECRET) {
     process.exit(1);
 }
 
-// Support both DATABASE_URL and individual DB settings
-if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
-    console.error('ERROR: DATABASE_URL or DB_HOST environment variable is not set!');
-    console.error('Please create a .env file in the server directory with database configuration');
+if (!process.env.DATABASE_URL) {
+    console.error('ERROR: DATABASE_URL environment variable is not set!');
+    console.error('Please create a .env file in the server directory with DATABASE_URL=<your-database-url>');
     process.exit(1);
 }
 

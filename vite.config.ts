@@ -65,24 +65,10 @@ export default defineConfig({
     force: true,
   },
   build: {
-    target: 'es2020',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'leaflet-vendor': ['leaflet', 'react-leaflet'],
-          'ui-vendor': ['framer-motion', 'lucide-react']
-        }
+        manualChunks: undefined,
       },
     },
-    chunkSizeWarningLimit: 1000,
-    sourcemap: false
   },
 })

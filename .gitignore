@@ -7,21 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
 node_modules
-server/node_modules
-
-# Build outputs
 dist
 dist-ssr
-build
-
-# Environment variables
+*.local
 .env
 .env.local
-.env.production
-.env.*.local
-*.env
+.env.*
 
 # Editor directories and files
 .vscode/*
@@ -33,36 +25,3 @@ build
 *.njsproj
 *.sln
 *.sw?
-
-# Android build files
-android/app/build
-android/build
-android/.gradle
-android/local.properties
-android/app/release
-*.apk
-*.aab
-*.keystore
-*.jks
-!release.keystore
-
-# Debug and test files
-server/debug*.txt
-server/debug*.js
-server/inspect*.txt
-server/inspect*.js
-server/*_out.txt
-server/*_dump.txt
-server/test*.js
-!server/test-api-login.js
-!server/test-login.js
-
-# Temporary files
-*.tmp
-*.temp
-.cache
-.parcel-cache
-
-# OS files
-Thumbs.db
-desktop.ini

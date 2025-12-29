@@ -5,33 +5,15 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Support both DATABASE_URL (for platforms like Render, Heroku) and individual settings (for Docker/K8s)
-let poolConfig;
-
-if (process.env.DATABASE_URL) {
-    // Use DATABASE_URL if provided (e.g., from Render, Heroku)
-    poolConfig = {
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? {
-            rejectUnauthorized: false
-        } : false,
-    };
-} else {
-    // Use individual DB settings (e.g., from Docker, K8s)
-    poolConfig = {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432'),
-        database: process.env.DB_NAME || 'location_tracking',
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD,
-        ssl: process.env.DB_SSL === 'true' ? {
-            rejectUnauthorized: false
-        } : false,
-    };
-}
+// Use the SAME database as Service Hub for unified authentication
+// This ensures any technician who can login to Service Hub can also login here
+const SERVICE_HUB_DB = 'postgresql://neondb_owner:npg_ls7YTgzeoNA4@ep-young-grass-aewvokzj-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require';
 
 const pool = new Pool({
-    ...poolConfig,
+    connectionString: process.env.DATABASE_URL || SERVICE_HUB_DB,
+    ssl: {
+        rejectUnauthorized: false
+    },
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
     max: 10,
