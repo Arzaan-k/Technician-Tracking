@@ -1,9 +1,13 @@
 
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
 
 // In production, use relative URL. In development, use localhost
-const API_URL = import.meta.env.VITE_API_URL || 
-    (import.meta.env.PROD ? '/api' : 'http://localhost:3000/api');
+// In native app, use the local network IP address (update this to your computer's IP)
+const LOCAL_DEV_IP = '192.168.1.143'; // Your computer's local IP address
+const API_URL = import.meta.env.VITE_API_URL ||
+    (Capacitor.isNativePlatform() ? `http://${LOCAL_DEV_IP}:3000/api` :
+        (import.meta.env.PROD ? '/api' : 'http://localhost:3000/api'));
 
 const api = axios.create({
     baseURL: API_URL,

@@ -42,8 +42,9 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Email and password are required' });
         }
 
+        // Primary: Check 'users' table (Service Hub Unified Auth)
         const result = await pool.query(
-            'SELECT employee_id, email, first_name, last_name, role, password_hash FROM employees WHERE email = $1',
+            'SELECT id, email, name, role, password, is_active FROM users WHERE email = $1',
             [email]
         );
 
@@ -52,29 +53,46 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const employee = result.rows[0];
-        const isValidPassword = await bcrypt.compare(password, employee.password_hash);
+        const user = result.rows[0];
+
+        // Check if account is active
+        if (user.is_active === false) {
+            return res.status(403).json({ error: 'Account is disabled' });
+        }
+
+        // Check if password exists (some users might have NULL password)
+        if (!user.password) {
+            console.log(`Login failed: No password set for ${email}`);
+            return res.status(401).json({ error: 'Account has no password set. Please contact admin.' });
+        }
+
+        const isValidPassword = await bcrypt.compare(password, user.password);
 
         if (!isValidPassword) {
             console.log(`Login attempt failed: Invalid password for email ${email}`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Split name for frontend compatibility
+        const nameParts = (user.name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
         const token = jwt.sign(
-            { employeeId: employee.employee_id, email: employee.email, role: employee.role },
+            { employeeId: user.id, email: user.email, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        console.log(`Login successful for email ${email}`);
+        console.log(`Login successful for email ${email} (Unified Auth)`);
         res.json({
             token,
             user: {
-                id: employee.employee_id,
-                email: employee.email,
-                firstName: employee.first_name,
-                lastName: employee.last_name,
-                role: employee.role
+                id: user.id,
+                email: user.email,
+                firstName: firstName,
+                lastName: lastName,
+                role: user.role
             }
         });
     } catch (error) {
@@ -94,20 +112,27 @@ router.get('/verify', async (req, res) => {
         if (err) return res.sendStatus(403);
 
         try {
+            // Check 'users' table
             const result = await pool.query(
-                'SELECT employee_id, email, first_name, last_name, role FROM employees WHERE employee_id = $1',
-                [decoded.employeeId]
+                'SELECT id, email, name, role FROM users WHERE id = $1',
+                [decoded.employeeId] // Token uses 'employeeId' as key for ID
             );
 
             if (result.rows.length === 0) return res.sendStatus(404);
 
-            const employee = result.rows[0];
+            const user = result.rows[0];
+
+            // Split name
+            const nameParts = (user.name || '').split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
             res.json({
-                employeeId: employee.employee_id,
-                email: employee.email,
-                firstName: employee.first_name,
-                lastName: employee.last_name,
-                role: employee.role
+                employeeId: user.id,
+                email: user.email,
+                firstName: firstName,
+                lastName: lastName,
+                role: user.role
             });
         } catch (error) {
             console.error('Verify error:', error);

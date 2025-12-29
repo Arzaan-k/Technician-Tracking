@@ -80,18 +80,5 @@ console.log('⚠️  IMPORTANT: Edit this file to set the correct password befor
 console.log('   Open: server/add-auditor-user.js');
 console.log('   Line 10: const password = "Crystal@123";  // CHANGE THIS\n');
 
-const readline = require('readline').createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-readline.question('Have you updated the password? (yes/no): ', (answer) => {
-    readline.close();
-    if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
-        addAuditorUser();
-    } else {
-        console.log('\n❌ Please edit the file first and set the correct password.');
-        console.log('   Then run: node add-auditor-user.js');
-        process.exit(0);
-    }
-});
+// Automatically run the function
+addAuditorUser();

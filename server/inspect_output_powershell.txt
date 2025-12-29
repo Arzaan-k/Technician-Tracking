@@ -1,0 +1,2 @@
+﻿[dotenv@17.2.3] injecting env (2) from .env -- tip: ≡ƒöä add secrets lifecycle management: https://dotenvx.com/ops
+--- Database Inspection ---
