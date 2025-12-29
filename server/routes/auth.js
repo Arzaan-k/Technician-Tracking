@@ -27,7 +27,8 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Login
+// Login - Email and Password (Unified with Service Hub)
+// Real-time authentication: Any technician in Service Hub can login here immediately
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -42,9 +43,12 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Email and password are required' });
         }
 
-        // Primary: Check 'users' table (Service Hub Unified Auth)
+        // Query Service Hub's unified users table directly
+        // This enables real-time authentication - no sync needed
         const result = await pool.query(
-            'SELECT id, email, name, role, password, is_active FROM users WHERE email = $1',
+            `SELECT id, email, name, role, password, is_active 
+             FROM users 
+             WHERE email = $1`,
             [email]
         );
 
@@ -60,16 +64,24 @@ router.post('/login', async (req, res) => {
             return res.status(403).json({ error: 'Account is disabled' });
         }
 
+        // Role-based access control for LocTrack mobile app
+        // Technicians, admins, and coordinators can use the location tracking app
+        const allowedRoles = ['technician', 'senior_technician', 'admin', 'super_admin', 'coordinator'];
+        if (!allowedRoles.includes(user.role)) {
+            console.log(`Login denied: Role '${user.role}' not authorized for LocTrack`);
+            return res.status(403).json({ error: 'This app is for technicians only. Please use the Service Hub dashboard.' });
+        }
+
         // Check if password exists (some users might have NULL password)
         if (!user.password) {
             console.log(`Login failed: No password set for ${email}`);
-            return res.status(401).json({ error: 'Account has no password set. Please contact admin.' });
+            return res.status(401).json({ error: 'Account has no password set. Please set your password on Service Hub first.' });
         }
 
         const isValidPassword = await bcrypt.compare(password, user.password);
 
         if (!isValidPassword) {
-            console.log(`Login attempt failed: Invalid password for email ${email}`);
+            console.log(`Login attempt failed: Invalid password for ${email}`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -84,7 +96,7 @@ router.post('/login', async (req, res) => {
             { expiresIn: '24h' }
         );
 
-        console.log(`Login successful for email ${email} (Unified Auth)`);
+        console.log(`Login successful for ${email} (role: ${user.role}) - Unified Auth`);
         res.json({
             token,
             user: {
