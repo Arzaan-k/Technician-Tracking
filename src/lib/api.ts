@@ -2,12 +2,22 @@
 import axios from 'axios';
 import { Capacitor } from '@capacitor/core';
 
-// In production, use relative URL. In development, use localhost
-// In native app, use the local network IP address (update this to your computer's IP)
-const LOCAL_DEV_IP = '192.168.1.143'; // Your computer's local IP address
+// Production API URL (Render deployment)
+const PRODUCTION_API_URL = 'https://loctrack-api.onrender.com/api';
+
+// Local development IP (for testing on physical device with local backend)
+const LOCAL_DEV_IP = '192.168.1.143';
+
+// API URL Selection:
+// - Production build (including native app release): Use production Render URL
+// - Development on native device: Use local IP
+// - Development in browser: Use localhost
 const API_URL = import.meta.env.VITE_API_URL ||
-    (Capacitor.isNativePlatform() ? `http://${LOCAL_DEV_IP}:3000/api` :
-        (import.meta.env.PROD ? '/api' : 'http://localhost:3000/api'));
+    (import.meta.env.PROD
+        ? PRODUCTION_API_URL  // Production builds always use Render
+        : (Capacitor.isNativePlatform()
+            ? `http://${LOCAL_DEV_IP}:3000/api`  // Dev on physical device
+            : 'http://localhost:3000/api'));     // Dev in browser
 
 const api = axios.create({
     baseURL: API_URL,

@@ -3,16 +3,11 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import locationRoutes from './routes/location.js';
 import adminRoutes from './routes/admin.js';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Check for required environment variables
 if (!process.env.JWT_SECRET) {
@@ -61,13 +56,24 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../dist')));
+// For mobile app backend, we don't serve frontend files
+// Return API info for root and 404 for unknown routes
+app.get('/', (req, res) => {
+    res.json({
+        name: 'LocTrack API',
+        version: '1.0.0',
+        status: 'running',
+        endpoints: {
+            health: '/api/health',
+            auth: '/api/auth/*',
+            location: '/api/location/*'
+        }
+    });
+});
 
-// Catch-all handler: send back React's index.html for any non-API routes
-// In Express 5, we use a middleware function instead of '*'
+// 404 handler for unknown routes
 app.use((req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    res.status(404).json({ error: 'Not Found', path: req.path });
 });
 
 app.listen(PORT, () => {
