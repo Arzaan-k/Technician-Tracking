@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../db.js';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -40,13 +40,14 @@ router.get('/technicians', authenticateToken, async (req, res) => {
 /**
  * GET /api/admin/live-map
  * Get live locations for all active technicians
- * Uses Service Hub's location_logs table
+ * Uses Service Hub's location_logs table (employee_id references technicians.id as varchar)
  */
 router.get('/live-map', authenticateToken, async (req, res) => {
     try {
         // Get technician IDs from query param for filtering (optional)
         const technicianIds = req.query.ids ? req.query.ids.split(',') : null;
 
+        // Query that properly handles varchar IDs
         let query = `
             SELECT DISTINCT ON (t.id)
                 t.id as technician_id,
@@ -54,12 +55,12 @@ router.get('/live-map', authenticateToken, async (req, res) => {
                 u.name,
                 u.email,
                 u.role,
-                l.latitude,
-                l.longitude,
+                COALESCE(l.latitude, t.latitude) as latitude,
+                COALESCE(l.longitude, t.longitude) as longitude,
                 l.speed,
                 l.battery_level,
                 l.accuracy,
-                l.address,
+                COALESCE(l.address, t.location_address) as address,
                 l.timestamp as last_seen,
                 CASE 
                     WHEN l.timestamp > NOW() - INTERVAL '5 minutes' THEN 'online'
@@ -76,7 +77,7 @@ router.get('/live-map', authenticateToken, async (req, res) => {
         const params = [];
 
         if (technicianIds && technicianIds.length > 0) {
-            query += ` AND t.id = ANY($1)`;
+            query += ` AND t.id = ANY($1::varchar[])`;
             params.push(technicianIds);
         }
 
@@ -86,8 +87,9 @@ router.get('/live-map', authenticateToken, async (req, res) => {
 
         const result = await pool.query(query, params);
 
+        // Map results, include technicians with static location from technicians table
         const technicians = result.rows
-            .filter(row => row.latitude && row.longitude) // Only include those with location data
+            .filter(row => row.latitude && row.longitude)
             .map(row => ({
                 id: row.technician_id,
                 userId: row.user_id,
@@ -95,12 +97,12 @@ router.get('/live-map', authenticateToken, async (req, res) => {
                 email: row.email,
                 role: row.role,
                 position: [parseFloat(row.latitude), parseFloat(row.longitude)],
-                speed: row.speed ? Math.round(parseFloat(row.speed) * 3.6) : 0, // Convert to km/h
+                speed: row.speed ? Math.round(parseFloat(row.speed) * 3.6) : 0,
                 battery: row.battery_level || null,
                 accuracy: row.accuracy ? Math.round(parseFloat(row.accuracy)) : null,
                 address: row.address || null,
-                lastSeen: row.last_seen,
-                status: row.status
+                lastSeen: row.last_seen || new Date().toISOString(),
+                status: row.last_seen ? row.status : 'offline'
             }));
 
         res.json(technicians);
@@ -117,7 +119,7 @@ router.get('/live-map', authenticateToken, async (req, res) => {
 router.get('/technician/:id/history', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-    const date = req.query.date; // Optional date filter (YYYY-MM-DD)
+    const date = req.query.date;
 
     try {
         let query = `
@@ -187,8 +189,8 @@ router.get('/stats', authenticateToken, async (req, res) => {
         res.json({
             totalTechnicians: parseInt(totalResult.rows[0].total),
             onlineTechnicians: parseInt(onlineResult.rows[0].online),
-            sessionsToday: parseInt(sessionsResult.rows[0].sessions_today),
-            totalDistanceToday: parseFloat(distanceResult.rows[0].total_distance_km || 0).toFixed(2)
+            sessionsToday: parseInt(sessionsResult.rows[0]?.sessions_today || 0),
+            totalDistanceToday: parseFloat(distanceResult.rows[0]?.total_distance_km || 0).toFixed(2)
         });
     } catch (error) {
         console.error('Admin stats error:', error.message);

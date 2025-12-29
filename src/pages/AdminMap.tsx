@@ -270,8 +270,11 @@ export default function AdminMap() {
                 })}
             </MapContainer>
 
-            {/* Top Stats Bar */}
-            <div className="absolute top-4 left-4 right-4 z-[1000] flex items-start justify-between gap-4">
+            {/* Top Stats Bar - with safe area */}
+            <div
+                className="absolute top-0 left-0 right-0 z-[1000] px-4 flex items-start justify-between gap-3"
+                style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)' }}
+            >
                 {/* Stats Card */}
                 <div className="bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">

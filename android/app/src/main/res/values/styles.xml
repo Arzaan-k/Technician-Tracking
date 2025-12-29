@@ -13,6 +13,11 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- Make status bar translucent so content doesn't go under it -->
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+        <!-- Use edge-to-edge with proper handling -->
+        <item name="android:fitsSystemWindows">true</item>
     </style>
 
 

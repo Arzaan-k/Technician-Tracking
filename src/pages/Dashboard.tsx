@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Play, Pause, MapPin, Battery, Signal, Clock, AlertTriangle, Navigation, Building, Map } from 'lucide-react';
+import { Play, Pause, MapPin, Battery, Signal, Clock, AlertTriangle, Navigation, Building, Map, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import UserMap from '@/components/UserMap';
+import { Capacitor } from '@capacitor/core';
 
 // Reverse geocode using OpenStreetMap Nominatim
 async function reverseGeocode(lat: number, lon: number): Promise<{ short: string; full: string }> {
@@ -24,7 +25,6 @@ async function reverseGeocode(lat: number, lon: number): Promise<{ short: string
         const data = await response.json();
         const addr = data.address || {};
 
-        // Short address (area/neighborhood)
         const shortParts: string[] = [];
         if (addr.road) shortParts.push(addr.road);
         if (addr.neighbourhood || addr.suburb) {
@@ -32,7 +32,6 @@ async function reverseGeocode(lat: number, lon: number): Promise<{ short: string
         }
         const short = shortParts.length > 0 ? shortParts.join(', ') : 'Current Location';
 
-        // Full detailed address
         const fullParts: string[] = [];
         if (addr.building || addr.amenity) fullParts.push(addr.building || addr.amenity);
         if (addr.house_number && addr.road) {
@@ -71,18 +70,31 @@ export default function Dashboard() {
         error,
         initLocation,
         trackingStartTime,
-        totalDistance
+        totalDistance,
+        requestPermissions
     } = useGeolocation();
 
     const [duration, setDuration] = useState('00:00:00');
     const [isExpanded, setIsExpanded] = useState(false);
     const [address, setAddress] = useState<{ short: string; full: string } | null>(null);
     const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+    const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
 
     // Get initial location for map display
     useEffect(() => {
         initLocation();
     }, [initLocation]);
+
+    // Check permissions on mount for native
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            // Check if we should show permission prompt
+            const hasAskedPermission = localStorage.getItem('hasAskedLocationPermission');
+            if (!hasAskedPermission) {
+                setShowPermissionPrompt(true);
+            }
+        }
+    }, []);
 
     // Fetch address when location changes
     const fetchAddress = useCallback(async () => {
@@ -95,12 +107,11 @@ export default function Dashboard() {
     }, [currentLocation?.latitude, currentLocation?.longitude]);
 
     useEffect(() => {
-        // Debounce address fetching - only fetch when location changes significantly
         const timer = setTimeout(() => {
             if (currentLocation) {
                 fetchAddress();
             }
-        }, 2000); // Wait 2 seconds after location change
+        }, 2000);
 
         return () => clearTimeout(timer);
     }, [currentLocation?.latitude?.toFixed(4), currentLocation?.longitude?.toFixed(4)]);
@@ -129,6 +140,12 @@ export default function Dashboard() {
         return () => clearInterval(interval);
     }, [isTracking, trackingStartTime]);
 
+    const handleGrantPermission = async () => {
+        localStorage.setItem('hasAskedLocationPermission', 'true');
+        setShowPermissionPrompt(false);
+        await requestPermissions();
+    };
+
     const toggleTracking = async () => {
         if (isTracking) {
             await stopTracking();
@@ -139,6 +156,37 @@ export default function Dashboard() {
 
     return (
         <div className="relative h-full w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+            {/* Permission Prompt Modal */}
+            {showPermissionPrompt && (
+                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Shield className="w-8 h-8 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-bold text-center mb-2">Background Location</h3>
+                        <p className="text-sm text-muted-foreground text-center mb-6">
+                            LocTrack needs location access to track your position even when the app is in the background.
+                            Please select <strong>"Allow all the time"</strong> when prompted.
+                        </p>
+                        <button
+                            onClick={handleGrantPermission}
+                            className="w-full py-3 bg-primary text-white rounded-xl font-semibold active:scale-98 transition-transform"
+                        >
+                            Grant Permission
+                        </button>
+                        <button
+                            onClick={() => {
+                                localStorage.setItem('hasAskedLocationPermission', 'true');
+                                setShowPermissionPrompt(false);
+                            }}
+                            className="w-full py-3 mt-2 text-muted-foreground text-sm"
+                        >
+                            Not Now
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Full Screen Map */}
             <div className="absolute inset-0 z-0">
                 {currentLocation ? (
@@ -155,106 +203,111 @@ export default function Dashboard() {
                 )}
             </div>
 
-            {/* Top Bar Overlay */}
-            <div className="absolute top-0 left-0 right-0 z-10 p-4 pt-6 bg-gradient-to-b from-black/70 to-transparent text-white">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-xl font-bold drop-shadow-md">
-                            Hello, {user?.firstName || 'Tech'}
-                        </h1>
-                        <p className="text-xs text-white/80 font-medium drop-shadow">
-                            {format(new Date(), 'EEEE, d MMM')}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] font-mono bg-black/40 px-2 py-1 rounded-full backdrop-blur-md border border-white/10">
-                        <div className={cn(
-                            "flex items-center gap-1",
-                            currentLocation?.accuracy && currentLocation.accuracy < 30
-                                ? "text-green-400"
-                                : "text-yellow-400"
-                        )}>
-                            <Signal className="w-3 h-3" />
+            {/* Top Bar Overlay - with safe area padding */}
+            <div
+                className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 via-black/40 to-transparent text-white"
+                style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)' }}
+            >
+                <div className="px-4 pb-4">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h1 className="text-lg font-bold drop-shadow-md">
+                                Hello, {user?.firstName || 'Tech'}
+                            </h1>
+                            <p className="text-xs text-white/80 font-medium drop-shadow">
+                                {format(new Date(), 'EEEE, d MMM')}
+                            </p>
                         </div>
-                        <span className="text-white/20">|</span>
-                        <div className={cn(
-                            "flex items-center gap-1",
-                            (currentLocation?.batteryLevel || 100) < 20
-                                ? "text-red-400"
-                                : "text-white"
-                        )}>
-                            <Battery className="w-3 h-3" />
-                            <span className="font-semibold">
-                                {currentLocation?.batteryLevel ? `${currentLocation.batteryLevel}%` : '--'}
-                            </span>
+                        <div className="flex items-center gap-2 text-[10px] font-mono bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+                            <div className={cn(
+                                "flex items-center gap-1",
+                                currentLocation?.accuracy && currentLocation.accuracy < 30
+                                    ? "text-green-400"
+                                    : "text-yellow-400"
+                            )}>
+                                <Signal className="w-3 h-3" />
+                            </div>
+                            <span className="text-white/20">|</span>
+                            <div className={cn(
+                                "flex items-center gap-1",
+                                (currentLocation?.batteryLevel || 100) < 20
+                                    ? "text-red-400"
+                                    : "text-white"
+                            )}>
+                                <Battery className="w-3 h-3" />
+                                <span className="font-semibold">
+                                    {currentLocation?.batteryLevel ? `${currentLocation.batteryLevel}%` : '--'}
+                                </span>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Current Location Address Card */}
+                    {currentLocation && (
+                        <div className="mt-3 bg-black/40 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                            <div className="flex items-start gap-2">
+                                <div className="p-1.5 rounded-lg bg-primary/20">
+                                    <Building className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] text-white/60 uppercase tracking-wider font-medium">Current Location</p>
+                                    {isLoadingAddress ? (
+                                        <div className="animate-pulse bg-white/20 h-4 w-32 rounded mt-1"></div>
+                                    ) : (
+                                        <p className="text-sm font-medium text-white truncate">
+                                            {address?.short || 'Determining location...'}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Error Banner */}
+                    {error && (
+                        <div className="mt-2 bg-red-500/80 backdrop-blur-md text-white text-xs p-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{error}</span>
+                        </div>
+                    )}
                 </div>
-
-                {/* Current Location Address Card */}
-                {currentLocation && (
-                    <div className="mt-3 bg-black/40 backdrop-blur-md rounded-xl p-3 border border-white/10">
-                        <div className="flex items-start gap-2">
-                            <div className="p-1.5 rounded-lg bg-primary/20">
-                                <Building className="w-4 h-4 text-white" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] text-white/60 uppercase tracking-wider font-medium">Current Location</p>
-                                {isLoadingAddress ? (
-                                    <div className="animate-pulse bg-white/20 h-4 w-32 rounded mt-1"></div>
-                                ) : (
-                                    <p className="text-sm font-medium text-white truncate">
-                                        {address?.short || 'Determining location...'}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Error Banner */}
-                {error && (
-                    <div className="mt-2 bg-red-500/80 backdrop-blur-md text-white text-xs p-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-                        <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{error}</span>
-                    </div>
-                )}
             </div>
 
             {/* Bottom Sheet Control Panel */}
             <div className={cn(
-                "absolute bottom-0 left-0 right-0 z-20 bg-background rounded-t-[2rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] transition-all duration-500 ease-spring pb-20",
-                isExpanded ? "h-[70vh]" : "h-auto"
+                "absolute bottom-0 left-0 right-0 z-20 bg-background rounded-t-[1.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] transition-all duration-500 ease-out",
+                isExpanded ? "h-[65vh]" : "h-auto"
             )}>
                 {/* Drag Handle */}
                 <div
                     className="w-full h-8 flex items-center justify-center cursor-pointer"
                     onClick={() => setIsExpanded(!isExpanded)}
                 >
-                    <div className="w-12 h-1.5 bg-muted rounded-full" />
+                    <div className="w-10 h-1 bg-muted rounded-full" />
                 </div>
 
-                <div className="px-6 pb-6">
+                <div className="px-5 pb-4">
                     {/* Primary Action Area */}
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="space-y-1">
-                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="space-y-0.5">
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                                 Session Time
                             </span>
                             <h2 className={cn(
                                 "font-mono font-bold text-foreground",
-                                isExpanded ? "text-4xl" : "text-3xl"
+                                isExpanded ? "text-3xl" : "text-2xl"
                             )}>
                                 {duration}
                             </h2>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-0.5">
                                 <div className={cn(
                                     "w-2 h-2 rounded-full transition-colors",
                                     isTracking
                                         ? "bg-green-500 animate-pulse"
                                         : "bg-gray-300 dark:bg-gray-600"
                                 )} />
-                                <span className="text-xs font-medium text-muted-foreground">
-                                    {isTracking ? "Live Tracking • Screen Awake" : "Offline"}
+                                <span className="text-[10px] font-medium text-muted-foreground">
+                                    {isTracking ? "Live Tracking" : "Offline"}
                                 </span>
                             </div>
                         </div>
@@ -264,57 +317,56 @@ export default function Dashboard() {
                             onClick={toggleTracking}
                             className={cn(
                                 "relative flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95",
-                                isExpanded ? "w-20 h-20 rounded-2xl" : "w-16 h-16 rounded-full",
+                                isExpanded ? "w-18 h-18 rounded-2xl" : "w-14 h-14 rounded-full",
                                 isTracking
                                     ? "bg-red-500 hover:bg-red-600 text-white"
                                     : "bg-primary hover:bg-primary/90 text-primary-foreground"
                             )}
                         >
                             {isTracking
-                                ? <Pause className="w-8 h-8 fill-current" />
-                                : <Play className="w-8 h-8 fill-current ml-1" />
+                                ? <Pause className="w-6 h-6 fill-current" />
+                                : <Play className="w-6 h-6 fill-current ml-0.5" />
                             }
                         </button>
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-secondary/50 p-4 rounded-2xl flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-secondary/50 p-3 rounded-xl flex flex-col gap-1">
                             <div className="flex items-center gap-2 text-muted-foreground">
-                                <Clock className="w-4 h-4" />
-                                <span className="text-xs font-medium">Speed</span>
+                                <Clock className="w-3.5 h-3.5" />
+                                <span className="text-[10px] font-medium">Speed</span>
                             </div>
-                            <p className="text-xl font-bold text-foreground">
+                            <p className="text-lg font-bold text-foreground">
                                 {currentLocation?.speed
                                     ? Math.round(currentLocation.speed * 3.6)
-                                    : 0
-                                }
-                                <span className="text-sm font-normal text-muted-foreground"> km/h</span>
+                                    : 0}
+                                <span className="text-xs font-normal text-muted-foreground ml-1">km/h</span>
                             </p>
                         </div>
-                        <div className="bg-secondary/50 p-4 rounded-2xl flex flex-col gap-2">
+                        <div className="bg-secondary/50 p-3 rounded-xl flex flex-col gap-1">
                             <div className="flex items-center gap-2 text-muted-foreground">
-                                <MapPin className="w-4 h-4" />
-                                <span className="text-xs font-medium">Distance</span>
+                                <MapPin className="w-3.5 h-3.5" />
+                                <span className="text-[10px] font-medium">Distance</span>
                             </div>
-                            <p className="text-xl font-bold text-foreground">
+                            <p className="text-lg font-bold text-foreground">
                                 {totalDistance.toFixed(2)}
-                                <span className="text-sm font-normal text-muted-foreground"> km</span>
+                                <span className="text-xs font-normal text-muted-foreground ml-1">km</span>
                             </p>
                         </div>
                     </div>
 
                     {/* Expanded Content */}
                     {isExpanded && currentLocation && (
-                        <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 overflow-auto max-h-[40vh]">
+                        <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 overflow-auto max-h-[35vh]">
                             {/* Full Address Card */}
-                            <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 rounded-2xl border border-primary/20">
+                            <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-3 rounded-xl border border-primary/20">
                                 <div className="flex items-start gap-3">
-                                    <div className="p-2 rounded-xl bg-primary/20">
-                                        <Building className="w-5 h-5 text-primary" />
+                                    <div className="p-2 rounded-lg bg-primary/20">
+                                        <Building className="w-4 h-4 text-primary" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Full Address</h3>
+                                        <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Full Address</h3>
                                         {isLoadingAddress ? (
                                             <div className="space-y-2">
                                                 <div className="animate-pulse bg-muted h-4 w-full rounded"></div>
@@ -330,27 +382,27 @@ export default function Dashboard() {
                             </div>
 
                             {/* Coordinates Card */}
-                            <div className="bg-secondary/30 p-4 rounded-2xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Map className="w-4 h-4 text-muted-foreground" />
-                                    <h3 className="text-sm font-semibold">GPS Coordinates</h3>
+                            <div className="bg-secondary/30 p-3 rounded-xl">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Map className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <h3 className="text-xs font-semibold">GPS Coordinates</h3>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="bg-background/50 p-3 rounded-xl">
-                                        <span className="text-muted-foreground text-xs block mb-1">Latitude</span>
-                                        <p className="font-mono font-medium">{currentLocation.latitude.toFixed(6)}°</p>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div className="bg-background/50 p-2 rounded-lg">
+                                        <span className="text-muted-foreground text-[10px] block">Lat</span>
+                                        <p className="font-mono text-xs font-medium">{currentLocation.latitude.toFixed(6)}°</p>
                                     </div>
-                                    <div className="bg-background/50 p-3 rounded-xl">
-                                        <span className="text-muted-foreground text-xs block mb-1">Longitude</span>
-                                        <p className="font-mono font-medium">{currentLocation.longitude.toFixed(6)}°</p>
+                                    <div className="bg-background/50 p-2 rounded-lg">
+                                        <span className="text-muted-foreground text-[10px] block">Lng</span>
+                                        <p className="font-mono text-xs font-medium">{currentLocation.longitude.toFixed(6)}°</p>
                                     </div>
-                                    <div className="bg-background/50 p-3 rounded-xl">
-                                        <span className="text-muted-foreground text-xs block mb-1">Accuracy</span>
-                                        <p className="font-mono font-medium">±{Math.round(currentLocation.accuracy)}m</p>
+                                    <div className="bg-background/50 p-2 rounded-lg">
+                                        <span className="text-muted-foreground text-[10px] block">Accuracy</span>
+                                        <p className="font-mono text-xs font-medium">±{Math.round(currentLocation.accuracy)}m</p>
                                     </div>
-                                    <div className="bg-background/50 p-3 rounded-xl">
-                                        <span className="text-muted-foreground text-xs block mb-1">Heading</span>
-                                        <p className="font-mono font-medium">
+                                    <div className="bg-background/50 p-2 rounded-lg">
+                                        <span className="text-muted-foreground text-[10px] block">Heading</span>
+                                        <p className="font-mono text-xs font-medium">
                                             {currentLocation.heading ? `${Math.round(currentLocation.heading)}°` : 'N/A'}
                                         </p>
                                     </div>
@@ -361,7 +413,7 @@ export default function Dashboard() {
                                     href={`https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="mt-4 w-full flex items-center justify-center gap-2 py-3 px-4 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90 transition-colors"
+                                    className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
                                 >
                                     <Map className="w-4 h-4" />
                                     Open in Google Maps
