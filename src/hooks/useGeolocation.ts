@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { location } from '@/lib/api';
 import { Capacitor } from '@capacitor/core';
+import { Geolocation, type Position } from '@capacitor/geolocation';
 import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service';
 
 interface LocationUpdate {
@@ -33,6 +34,7 @@ interface UseGeolocationReturn {
     startTracking: () => Promise<void>;
     stopTracking: () => Promise<void>;
     initLocation: () => void;
+    requestPermissions: () => Promise<boolean>;
 }
 
 const SYNC_INTERVAL_MS = 30000; // 30 seconds
@@ -69,11 +71,15 @@ export function useGeolocation(): UseGeolocationReturn {
     const [trackingStartTime, setTrackingStartTime] = useState<number | null>(null);
     const [totalDistance, setTotalDistance] = useState(0);
 
-    const watchIdRef = useRef<number | null>(null);
+    const watchIdRef = useRef<string | number | null>(null);
     const batchRef = useRef<LocationUpdate[]>([]);
     const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const previousLocationRef = useRef<LocationState | null>(null);
     const isInitializedRef = useRef(false);
+    const isNativeRef = useRef(Capacitor.isNativePlatform());
+
+    // Internal wake lock ref
+    const wakeLockRef = useRef<any>(null);
 
     // Sync locations to server
     const syncLocations = useCallback(async () => {
@@ -83,86 +89,135 @@ export function useGeolocation(): UseGeolocationReturn {
         try {
             await location.updateLocation(locationsToSync);
             batchRef.current = [];
+            console.log(`Synced ${locationsToSync.length} locations to server`);
         } catch (e) {
+            console.error('Sync failed, will retry:', e);
             // Keep locations in batch for next sync attempt
-            console.error('Sync failed, will retry');
         }
     }, []);
 
     // Clean up function
-    const cleanup = useCallback(() => {
-        if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
+    const cleanup = useCallback(async () => {
+        if (isNativeRef.current && watchIdRef.current) {
+            try {
+                await Geolocation.clearWatch({ id: watchIdRef.current as string });
+            } catch (e) {
+                console.error('Error clearing native watch:', e);
+            }
+            watchIdRef.current = null;
+        } else if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current as number);
             watchIdRef.current = null;
         }
+
         if (syncIntervalRef.current) {
             clearInterval(syncIntervalRef.current);
             syncIntervalRef.current = null;
         }
     }, []);
 
-    // Initialize location once (for map display)
-    const initLocation = useCallback(() => {
-        if (!navigator.geolocation) {
-            setError('Geolocation is not supported by this browser');
-            return;
+    // Request permissions (especially for native)
+    const requestPermissions = useCallback(async (): Promise<boolean> => {
+        if (!isNativeRef.current) {
+            // Browser - permissions are requested on first geolocation call
+            return true;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                const batteryLevel = await getBatteryLevel();
-                setCurrentLocation({
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    accuracy: pos.coords.accuracy,
-                    timestamp: pos.timestamp,
-                    speed: pos.coords.speed,
-                    heading: pos.coords.heading,
-                    batteryLevel,
-                });
-                setError(null);
-            },
-            (err) => {
-                setError(err.message);
-            },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-        );
+        try {
+            let permissions = await Geolocation.checkPermissions();
+            console.log('Current permissions:', permissions);
+
+            if (permissions.location !== 'granted') {
+                permissions = await Geolocation.requestPermissions();
+                console.log('Requested permissions:', permissions);
+            }
+
+            if (permissions.location === 'denied') {
+                setError('Location permission denied. Please enable in Settings.');
+                return false;
+            }
+
+            return true;
+        } catch (e: any) {
+            console.error('Permission error:', e);
+            setError(e.message || 'Failed to get location permissions');
+            return false;
+        }
     }, []);
 
-    // Check for existing session on mount
-    useEffect(() => {
-        if (isInitializedRef.current) return;
-        isInitializedRef.current = true;
+    // Process a position update
+    const processPosition = useCallback(async (position: Position | GeolocationPosition) => {
+        const coords = position.coords;
+        const batteryLevel = await getBatteryLevel();
 
-        const checkSession = async () => {
-            // Check localStorage for persisted tracking state
-            const wasTracking = localStorage.getItem('isTracking') === 'true';
-            const savedStartTime = localStorage.getItem('trackingStartTime');
-            const savedDistance = localStorage.getItem('totalDistance');
-
-            if (savedDistance) {
-                setTotalDistance(parseFloat(savedDistance));
-            }
-
-            if (wasTracking && savedStartTime) {
-                // Resume tracking
-                setTrackingStartTime(parseInt(savedStartTime, 10));
-                startTrackingInternal(true);
-            } else {
-                // Just get current location for map
-                initLocation();
-            }
+        const newLocation: LocationState = {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy || 0,
+            speed: coords.speed,
+            heading: coords.heading,
+            timestamp: position.timestamp,
+            batteryLevel,
         };
 
-        checkSession();
+        // Update distance if accuracy is good enough
+        const prevLoc = previousLocationRef.current;
+        if (prevLoc && newLocation.accuracy < MIN_ACCURACY_THRESHOLD) {
+            const dist = calculateDistance(
+                prevLoc.latitude, prevLoc.longitude,
+                newLocation.latitude, newLocation.longitude
+            );
+            if (dist > MIN_DISTANCE_THRESHOLD_KM) {
+                setTotalDistance(prev => {
+                    const next = prev + dist;
+                    localStorage.setItem('totalDistance', next.toString());
+                    return next;
+                });
+            }
+        }
 
-        return cleanup;
-    }, [cleanup, initLocation]);
+        previousLocationRef.current = newLocation;
+        setCurrentLocation(newLocation);
 
-    // internal wake lock ref
-    const wakeLockRef = useRef<any>(null);
+        // Add to batch
+        batchRef.current.push({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy || undefined,
+            speed: coords.speed,
+            heading: coords.heading,
+            timestamp: position.timestamp,
+            batteryLevel,
+            networkStatus: navigator.onLine ? 'online' : 'offline',
+        });
+    }, []);
 
-    // Request Wake Lock to keep screen (and GPS) active
+    // Initialize location once (for map display)
+    const initLocation = useCallback(async () => {
+        setError(null);
+
+        try {
+            if (isNativeRef.current) {
+                const position = await Geolocation.getCurrentPosition({
+                    enableHighAccuracy: true,
+                    timeout: 15000
+                });
+                await processPosition(position);
+            } else {
+                navigator.geolocation.getCurrentPosition(
+                    async (pos) => {
+                        await processPosition(pos);
+                    },
+                    (err) => setError(err.message),
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            }
+        } catch (e: any) {
+            setError(e.message || 'Failed to get location');
+        }
+    }, [processPosition]);
+
+    // Request Wake Lock
     const requestWakeLock = useCallback(async () => {
         if ('wakeLock' in navigator) {
             try {
@@ -173,120 +228,98 @@ export function useGeolocation(): UseGeolocationReturn {
                     console.log('Wake Lock released');
                 });
             } catch (err: any) {
-                console.error(`${err.name}, ${err.message}`);
+                console.error(`Wake Lock error: ${err.name}, ${err.message}`);
             }
         }
     }, []);
 
-    // Re-acquire wake lock on visibility change if tracking
-    useEffect(() => {
-        const handleVisibilityChange = async () => {
-            if (document.visibilityState === 'visible' && isTracking && !wakeLockRef.current) {
-                await requestWakeLock();
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
-    }, [isTracking, requestWakeLock]);
-
-    // Internal tracking start (can resume)
-    const startTrackingInternal = async (isResuming = false) => {
-        if (!navigator.geolocation) {
-            setError('Geolocation is not supported');
-            return;
-        }
+    // Start/Stop Foreground Service
+    const startForegroundService = useCallback(async () => {
+        if (!isNativeRef.current || Capacitor.getPlatform() !== 'android') return;
 
         try {
-            await requestWakeLock(); // Request Screen Wake Lock
+            await ForegroundService.startForegroundService({
+                id: 12345,
+                body: 'Tracking your location in the background',
+                title: 'LocTrack Active',
+                smallIcon: 'ic_stat_location',
+            });
+            console.log('Foreground service started');
+        } catch (e) {
+            console.error('Failed to start foreground service:', e);
+        }
+    }, []);
 
-            // Start Foreground Service (Android)
-            if (Capacitor.getPlatform() === 'android') {
-                try {
-                    await ForegroundService.startForegroundService({
-                        id: 12345,
-                        body: 'Technician Tracking Active',
-                        title: 'LocTrack',
-                        smallIcon: 'ic_stat_location', // Needs to be added to Android Res
-                    });
-                } catch (e) {
-                    console.error('Failed to start foreground service', e);
-                }
-            }
+    const stopForegroundService = useCallback(async () => {
+        if (!isNativeRef.current || Capacitor.getPlatform() !== 'android') return;
 
-            if (!isResuming) {
-                // Create new session on server
-                await location.startTracking();
-                const now = Date.now();
-                setTrackingStartTime(now);
-                localStorage.setItem('trackingStartTime', now.toString());
-                setTotalDistance(0);
-                localStorage.setItem('totalDistance', '0');
-            }
+        try {
+            await ForegroundService.stopForegroundService();
+            console.log('Foreground service stopped');
+        } catch (e) {
+            console.error('Failed to stop foreground service:', e);
+        }
+    }, []);
+
+    // Start tracking
+    const startTracking = useCallback(async () => {
+        // Request permissions first
+        const hasPermission = await requestPermissions();
+        if (!hasPermission) return;
+
+        try {
+            await requestWakeLock();
+            await startForegroundService();
+
+            // Create new session on server
+            await location.startTracking();
+            const now = Date.now();
+            setTrackingStartTime(now);
+            localStorage.setItem('trackingStartTime', now.toString());
+            setTotalDistance(0);
+            localStorage.setItem('totalDistance', '0');
 
             setIsTracking(true);
             localStorage.setItem('isTracking', 'true');
             setError(null);
             batchRef.current = [];
 
-            // Start GPS watch
-            watchIdRef.current = navigator.geolocation.watchPosition(
-                async (position) => {
-                    const { latitude, longitude, accuracy, speed, heading } = position.coords;
-                    const batteryLevel = await getBatteryLevel();
-
-                    const newLocation: LocationState = {
-                        latitude,
-                        longitude,
-                        accuracy,
-                        speed,
-                        heading,
-                        timestamp: position.timestamp,
-                        batteryLevel,
-                    };
-
-                    // Update distance if accuracy is good enough
-                    const prevLoc = previousLocationRef.current;
-                    if (prevLoc && accuracy < MIN_ACCURACY_THRESHOLD) {
-                        const dist = calculateDistance(
-                            prevLoc.latitude, prevLoc.longitude,
-                            latitude, longitude
-                        );
-                        if (dist > MIN_DISTANCE_THRESHOLD_KM) {
-                            setTotalDistance(prev => {
-                                const next = prev + dist;
-                                localStorage.setItem('totalDistance', next.toString());
-                                return next;
-                            });
+            // Start watching position
+            if (isNativeRef.current) {
+                // Use Capacitor Geolocation for native
+                const watchId = await Geolocation.watchPosition(
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0,
+                    },
+                    async (position, err) => {
+                        if (err) {
+                            console.error('Watch position error:', err);
+                            return;
+                        }
+                        if (position) {
+                            await processPosition(position);
                         }
                     }
-
-                    previousLocationRef.current = newLocation;
-                    setCurrentLocation(newLocation);
-
-                    // Add to batch
-                    batchRef.current.push({
-                        latitude,
-                        longitude,
-                        accuracy,
-                        speed,
-                        heading,
-                        timestamp: position.timestamp,
-                        batteryLevel,
-                        networkStatus: navigator.onLine ? 'online' : 'offline',
-                    });
-                },
-                (err) => {
-                    setError(err.message);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0,
-                }
-            );
+                );
+                watchIdRef.current = watchId;
+            } else {
+                // Use browser geolocation
+                watchIdRef.current = navigator.geolocation.watchPosition(
+                    async (position) => {
+                        await processPosition(position);
+                    },
+                    (err) => {
+                        setError(err.message);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0,
+                    }
+                );
+            }
 
             // Setup sync interval
             syncIntervalRef.current = setInterval(syncLocations, SYNC_INTERVAL_MS);
@@ -297,16 +330,11 @@ export function useGeolocation(): UseGeolocationReturn {
             localStorage.removeItem('isTracking');
             localStorage.removeItem('trackingStartTime');
         }
-    };
-
-    // Public start tracking
-    const startTracking = useCallback(async () => {
-        await startTrackingInternal(false);
-    }, []);
+    }, [requestPermissions, requestWakeLock, startForegroundService, processPosition, syncLocations]);
 
     // Stop tracking
     const stopTracking = useCallback(async () => {
-        cleanup();
+        await cleanup();
 
         // Final sync
         if (batchRef.current.length > 0) {
@@ -324,14 +352,7 @@ export function useGeolocation(): UseGeolocationReturn {
             // Session might already be stopped
         }
 
-        // Stop Foreground Service
-        if (Capacitor.getPlatform() === 'android') {
-            try {
-                await ForegroundService.stopForegroundService();
-            } catch (e) {
-                console.error('Failed to stop foreground service', e);
-            }
-        }
+        await stopForegroundService();
 
         // Release Wake Lock
         if (wakeLockRef.current) {
@@ -354,7 +375,78 @@ export function useGeolocation(): UseGeolocationReturn {
         localStorage.removeItem('isTracking');
         localStorage.removeItem('trackingStartTime');
         localStorage.removeItem('totalDistance');
-    }, [cleanup, totalDistance]);
+    }, [cleanup, totalDistance, stopForegroundService]);
+
+    // Re-acquire wake lock on visibility change if tracking
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState === 'visible' && isTracking && !wakeLockRef.current) {
+                await requestWakeLock();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isTracking, requestWakeLock]);
+
+    // Check for existing session on mount
+    useEffect(() => {
+        if (isInitializedRef.current) return;
+        isInitializedRef.current = true;
+
+        const checkSession = async () => {
+            const wasTracking = localStorage.getItem('isTracking') === 'true';
+            const savedStartTime = localStorage.getItem('trackingStartTime');
+            const savedDistance = localStorage.getItem('totalDistance');
+
+            if (savedDistance) {
+                setTotalDistance(parseFloat(savedDistance));
+            }
+
+            if (wasTracking && savedStartTime) {
+                // Resume tracking
+                console.log('Resuming previous tracking session...');
+                setTrackingStartTime(parseInt(savedStartTime, 10));
+
+                // Request permissions and start watching
+                const hasPermission = await requestPermissions();
+                if (hasPermission) {
+                    setIsTracking(true);
+                    await startForegroundService();
+                    await requestWakeLock();
+
+                    if (isNativeRef.current) {
+                        const watchId = await Geolocation.watchPosition(
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+                            async (position) => {
+                                if (position) await processPosition(position);
+                            }
+                        );
+                        watchIdRef.current = watchId;
+                    } else {
+                        watchIdRef.current = navigator.geolocation.watchPosition(
+                            async (pos) => await processPosition(pos),
+                            (err) => setError(err.message),
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                    }
+
+                    syncIntervalRef.current = setInterval(syncLocations, SYNC_INTERVAL_MS);
+                }
+            } else {
+                // Just get current location for map
+                initLocation();
+            }
+        };
+
+        checkSession();
+
+        return () => {
+            cleanup();
+        };
+    }, []);
 
     return {
         currentLocation,
@@ -365,5 +457,6 @@ export function useGeolocation(): UseGeolocationReturn {
         startTracking,
         stopTracking,
         initLocation,
+        requestPermissions,
     };
 }

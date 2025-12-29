@@ -3,7 +3,7 @@ import pool from '../db.js';
 
 /**
  * Middleware to authenticate JWT token
- * Used across all protected routes
+ * Works with Service Hub's unified users table
  */
 export const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -19,9 +19,9 @@ export const authenticateToken = (req, res, next) => {
         }
 
         try {
-            // Verify user still exists and is active
+            // Verify user still exists and is active in Service Hub's users table
             const result = await pool.query(
-                'SELECT employee_id, email, role, is_active FROM employees WHERE employee_id = $1',
+                'SELECT id, email, name, role, is_active FROM users WHERE id = $1',
                 [decoded.employeeId]
             );
 
@@ -35,24 +35,40 @@ export const authenticateToken = (req, res, next) => {
                 return res.status(403).json({ error: 'Account is disabled' });
             }
 
+            // Get technician ID if user is a technician (for location logging)
+            let technicianId = null;
+            if (['technician', 'senior_technician'].includes(user.role)) {
+                const techResult = await pool.query(
+                    'SELECT id FROM technicians WHERE user_id = $1',
+                    [user.id]
+                );
+                if (techResult.rows.length > 0) {
+                    technicianId = techResult.rows[0].id;
+                }
+            }
+
             req.user = {
-                employeeId: user.employee_id,
+                employeeId: technicianId || user.id, // Use technician ID if available, else user ID
+                userId: user.id,
                 email: user.email,
+                name: user.name,
                 role: user.role
             };
 
             next();
         } catch (error) {
+            console.error('Auth middleware error:', error);
             return res.status(500).json({ error: 'Authentication failed' });
         }
     });
 };
 
 /**
- * Middleware to require admin role
+ * Middleware to require admin/coordinator role
  */
 export const requireAdmin = (req, res, next) => {
-    if (req.user?.role !== 'admin') {
+    const adminRoles = ['admin', 'super_admin', 'coordinator'];
+    if (!adminRoles.includes(req.user?.role)) {
         return res.status(403).json({ error: 'Admin access required' });
     }
     next();
@@ -62,10 +78,9 @@ export const requireAdmin = (req, res, next) => {
  * Middleware to require technician or admin role
  */
 export const requireTechnician = (req, res, next) => {
-    const allowedRoles = ['technician', 'admin', 'field_technician'];
+    const allowedRoles = ['technician', 'senior_technician', 'admin', 'super_admin', 'coordinator'];
     if (!allowedRoles.includes(req.user?.role)) {
         return res.status(403).json({ error: 'Technician access required' });
     }
     next();
 };
-
