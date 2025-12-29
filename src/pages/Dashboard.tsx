@@ -155,11 +155,11 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="relative h-full w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <div className="relative h-full w-full overflow-hidden bg-background">
             {/* Permission Prompt Modal */}
             {showPermissionPrompt && (
-                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95">
+                <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-6">
+                    <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95">
                         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
                             <Shield className="w-8 h-8 text-primary" />
                         </div>
@@ -188,7 +188,7 @@ export default function Dashboard() {
             )}
 
             {/* Full Screen Map */}
-            <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 z-0 h-full w-full">
                 {currentLocation ? (
                     <UserMap
                         latitude={currentLocation.latitude}
@@ -196,7 +196,7 @@ export default function Dashboard() {
                         heading={currentLocation.heading}
                     />
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full bg-slate-200 dark:bg-slate-800 text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center h-full bg-muted/20 text-muted-foreground">
                         <Navigation className="w-12 h-12 mb-4 animate-bounce text-primary/50" />
                         <p>Locating you...</p>
                     </div>
@@ -205,8 +205,7 @@ export default function Dashboard() {
 
             {/* Top Bar Overlay - with safe area padding */}
             <div
-                className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 via-black/40 to-transparent text-white"
-                style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)' }}
+                className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 via-black/40 to-transparent text-white safe-top"
             >
                 <div className="px-4 pb-4">
                     <div className="flex justify-between items-start">
@@ -275,8 +274,8 @@ export default function Dashboard() {
 
             {/* Bottom Sheet Control Panel */}
             <div className={cn(
-                "absolute bottom-0 left-0 right-0 z-20 bg-background rounded-t-[1.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] transition-all duration-500 ease-out",
-                isExpanded ? "h-[65vh]" : "h-auto"
+                "absolute bottom-0 left-0 right-0 z-20 bg-background rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] transition-all duration-500 ease-out safe-bottom safe-left safe-right",
+                isExpanded ? "h-[65dvh]" : "h-auto"
             )}>
                 {/* Drag Handle */}
                 <div
@@ -316,10 +315,10 @@ export default function Dashboard() {
                         <button
                             onClick={toggleTracking}
                             className={cn(
-                                "relative flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95",
-                                isExpanded ? "w-18 h-18 rounded-2xl" : "w-14 h-14 rounded-full",
+                                "relative flex items-center justify-center transition-all duration-300 shadow-md active:scale-95",
+                                isExpanded ? "w-16 h-16 rounded-xl" : "w-14 h-14 rounded-full",
                                 isTracking
-                                    ? "bg-red-500 hover:bg-red-600 text-white"
+                                    ? "bg-destructive hover:bg-destructive/90 text-white"
                                     : "bg-primary hover:bg-primary/90 text-primary-foreground"
                             )}
                         >
@@ -360,13 +359,13 @@ export default function Dashboard() {
                     {isExpanded && currentLocation && (
                         <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 overflow-auto max-h-[35vh]">
                             {/* Full Address Card */}
-                            <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-3 rounded-xl border border-primary/20">
+                            <div className="bg-muted/50 p-4 rounded-lg border border-border">
                                 <div className="flex items-start gap-3">
-                                    <div className="p-2 rounded-lg bg-primary/20">
+                                    <div className="p-2 rounded-md bg-primary/10">
                                         <Building className="w-4 h-4 text-primary" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Full Address</h3>
+                                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Full Address</h3>
                                         {isLoadingAddress ? (
                                             <div className="space-y-2">
                                                 <div className="animate-pulse bg-muted h-4 w-full rounded"></div>

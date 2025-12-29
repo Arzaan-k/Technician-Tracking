@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { location } from '@/lib/api';
 import { format } from 'date-fns';
-import { 
-    RefreshCw, ChevronDown, ChevronUp, 
+import {
+    RefreshCw, ChevronDown, ChevronUp,
     Play, Navigation, Timer, PauseCircle,
     Map as MapIcon, ExternalLink, Route
 } from 'lucide-react';
@@ -72,32 +72,32 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
 
         const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
-            { 
-                headers: { 
-                    'Accept-Language': 'en', 
-                    'User-Agent': 'TechnicianTrackingApp/1.0 (contact@example.com)' 
-                } 
+            {
+                headers: {
+                    'Accept-Language': 'en',
+                    'User-Agent': 'TechnicianTrackingApp/1.0 (contact@example.com)'
+                }
             }
         );
-        
+
         // Handle rate limiting response
         if (response.status === 429) {
             console.warn('Rate limited by Nominatim, waiting...');
             await delay(2000);
             return reverseGeocode(lat, lon); // Retry
         }
-        
+
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
         const data = await response.json();
         const addr = data.address || {};
-        
+
         const parts: string[] = [];
         if (addr.building || addr.amenity || addr.shop) parts.push(addr.building || addr.amenity || addr.shop);
         if (addr.road) parts.push(addr.road);
         if (addr.neighbourhood || addr.suburb) parts.push(addr.neighbourhood || addr.suburb);
         if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
-        
+
         const address = parts.length > 0 ? parts.join(', ') : data.display_name?.split(',').slice(0, 3).join(',') || 'Unknown location';
         addressCache[cacheKey] = address;
         return address;
@@ -165,7 +165,7 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
     // Load addresses (only when card becomes visible)
     useEffect(() => {
         let isMounted = true;
-        
+
         const loadAddresses = async () => {
             // Load start address first
             if (session.start_location && isMounted) {
@@ -174,7 +174,7 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                     parseFloat(session.start_location.longitude)
                 );
                 if (isMounted) setStartAddress(startAddr);
-                
+
                 // Then load end address (sequential, not parallel)
                 if (session.end_location && isMounted) {
                     const endAddr = await reverseGeocode(
@@ -187,24 +187,24 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                 }
             }
         };
-        
+
         loadAddresses();
-        
+
         return () => { isMounted = false; };
     }, [session.session_id]); // Only depend on session_id to prevent re-fetching
 
     // Load route when expanded
     useEffect(() => {
         let isMounted = true;
-        
+
         if (isExpanded && !routeData && !isLoadingRoute) {
             setIsLoadingRoute(true);
-            
+
             location.getSessionDetails(session.session_id)
                 .then(async (res: any) => {
                     if (!isMounted) return;
                     setRouteData(res.data);
-                    
+
                     // Load stop addresses sequentially (max 3 to avoid rate limiting)
                     const addrs: string[] = [];
                     for (const stop of res.data.stops.slice(0, 3)) {
@@ -219,7 +219,7 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                     if (isMounted) setIsLoadingRoute(false);
                 });
         }
-        
+
         return () => { isMounted = false; };
     }, [isExpanded, session.session_id]);
 
@@ -234,8 +234,8 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                 {/* Time & Status */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-                            <Route className={`w-5 h-5 ${isActive ? 'text-green-600' : 'text-blue-600'}`} />
+                        <div className={`p-2 rounded-xl ${isActive ? 'bg-green-500/10' : 'bg-primary/10'}`}>
+                            <Route className={`w-5 h-5 ${isActive ? 'text-green-600' : 'text-primary'}`} />
                         </div>
                         <div>
                             <p className="font-semibold text-lg">
@@ -246,7 +246,7 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${isActive ? 'bg-green-100 text-green-700 animate-pulse' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${isActive ? 'bg-green-500/10 text-green-600 animate-pulse' : 'bg-muted text-muted-foreground'}`}>
                             {isActive ? 'Active' : 'Completed'}
                         </span>
                         {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
@@ -327,7 +327,7 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                                         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                                         attribution='OpenStreetMap'
                                     />
-                                    
+
                                     {/* Route Line */}
                                     <Polyline
                                         positions={routeData.route.map(p => [p.lat, p.lng])}
@@ -342,8 +342,8 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                                     </Marker>
 
                                     {/* End Marker */}
-                                    <Marker 
-                                        position={[routeData.route[routeData.route.length - 1].lat, routeData.route[routeData.route.length - 1].lng]} 
+                                    <Marker
+                                        position={[routeData.route[routeData.route.length - 1].lat, routeData.route[routeData.route.length - 1].lng]}
                                         icon={createEndIcon()}
                                     >
                                         <Popup><strong className="text-red-600">End:</strong> {endAddress}</Popup>
@@ -353,8 +353,8 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                                     {routeData.stops.map((stop, idx) => (
                                         <Marker key={idx} position={[stop.latitude, stop.longitude]} icon={createStopIcon()}>
                                             <Popup>
-                                                <strong className="text-amber-600">Stop #{idx + 1}</strong><br/>
-                                                {stopAddresses[idx] || 'Loading...'}<br/>
+                                                <strong className="text-amber-600">Stop #{idx + 1}</strong><br />
+                                                {stopAddresses[idx] || 'Loading...'}<br />
                                                 <span className="text-xs">{stop.duration_minutes} min</span>
                                             </Popup>
                                         </Marker>
@@ -401,7 +401,7 @@ function SessionCard({ session }: { session: TrackingSessionData }) {
                                                         {format(new Date(stop.start_time), 'h:mm a')} • {stop.duration_minutes} min stop
                                                     </p>
                                                 </div>
-                                                <a 
+                                                <a
                                                     href={`https://www.google.com/maps?q=${stop.latitude},${stop.longitude}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
@@ -476,36 +476,46 @@ export default function History() {
     }
 
     return (
-        <div className="p-4 pb-24 max-w-2xl mx-auto">
-            <header className="mb-6 flex justify-between items-center sticky top-0 bg-background/95 backdrop-blur-sm py-3 z-20">
-                <div>
-                    <h1 className="text-2xl font-bold">Trip History</h1>
-                    <p className="text-muted-foreground text-sm">Your tracking sessions</p>
+        <div
+            className="min-h-[100dvh] bg-background pb-24 safe-top"
+        >
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-20 bg-gradient-to-b from-background via-background to-background/95 backdrop-blur-xl border-b border-border/50 px-6 py-4 mb-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-black text-foreground">Trip History</h1>
+                        <p className="text-sm text-muted-foreground font-medium mt-1">Your tracking sessions</p>
+                    </div>
+                    <button
+                        onClick={onRefresh}
+                        className="p-3 rounded-2xl bg-secondary hover:bg-secondary/80 active:scale-95 transition-all border border-border shadow-sm"
+                        disabled={isRefreshing}
+                        aria-label="Refresh"
+                    >
+                        <RefreshCw className={`w-5 h-5 text-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
-                <button
-                    onClick={onRefresh}
-                    className="p-2.5 rounded-full hover:bg-secondary transition-colors border"
-                    disabled={isRefreshing}
-                >
-                    <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </button>
-            </header>
+            </div>
 
-            <div className="space-y-4">
+            <div className="max-w-2xl mx-auto px-6 space-y-4">
                 {sessions.map((session) => (
                     <SessionCard key={session.session_id} session={session} />
                 ))}
 
                 {sessions.length === 0 && (
-                    <div className="text-center py-16 text-muted-foreground">
-                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
-                            <Route className="w-10 h-10 opacity-30" />
+                    <div className="text-center py-20 animate-in slide-in-from-bottom">
+                        <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-secondary to-accent flex items-center justify-center">
+                            <Route className="w-12 h-12 text-primary opacity-50" />
                         </div>
-                        <p className="font-medium">No trips yet</p>
-                        <p className="text-sm mt-1">Start tracking to see your trip history here</p>
-                        <p className="text-xs mt-4 text-muted-foreground">
-                            Press the <span className="text-green-500 font-bold">Play</span> button on Dashboard to start a trip
-                        </p>
+                        <h3 className="text-xl font-bold text-foreground mb-2">No trips yet</h3>
+                        <p className="text-base text-muted-foreground mb-6">Start tracking to see your trip history here</p>
+                        <div className="bg-card border border-border rounded-2xl p-6 max-w-sm mx-auto">
+                            <p className="text-sm text-muted-foreground">
+                                Press the <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-500 text-white mx-1">
+                                    <Play className="w-3 h-3 fill-current ml-0.5" />
+                                </span> button on Dashboard to start your first trip
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

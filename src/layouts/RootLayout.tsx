@@ -8,74 +8,104 @@ export default function RootLayout() {
     const isAdmin = user?.role && ['admin', 'super_admin', 'coordinator'].includes(user.role);
 
     return (
-        <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
-            {/* Status bar spacer - respects safe area */}
-            <div className="flex-shrink-0 bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
-
+        <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
+            {/* Main content */}
             <main className="flex-1 overflow-y-auto relative">
                 <Outlet />
             </main>
 
-            {/* Bottom Navigation - respects safe area */}
+            {/* Bottom Navigation - Mobile Optimized */}
             <nav
-                className="flex-shrink-0 border-t border-border bg-card/95 backdrop-blur-xl px-4 pt-2 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
-                style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
+                className="flex-shrink-0 bg-card/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-2px_20px_rgba(0,0,0,0.06)] z-50 safe-bottom safe-left safe-right"
             >
-                <NavLink
-                    to="/"
-                    end
-                    className={({ isActive }) => cn(
-                        "flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200",
-                        isActive
-                            ? "text-primary bg-primary/10"
-                            : "text-muted-foreground hover:text-foreground active:scale-95"
-                    )}
-                >
-                    <MapPin className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">Track</span>
-                </NavLink>
-
-                <NavLink
-                    to="/history"
-                    className={({ isActive }) => cn(
-                        "flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200",
-                        isActive
-                            ? "text-primary bg-primary/10"
-                            : "text-muted-foreground hover:text-foreground active:scale-95"
-                    )}
-                >
-                    <Clock className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">History</span>
-                </NavLink>
-
-                {/* Admin Map - Only visible to admins/coordinators */}
-                {isAdmin && (
+                <div className="flex justify-around items-center px-4 pt-3">
+                    {/* Track Tab */}
                     <NavLink
-                        to="/admin"
+                        to="/"
+                        end
                         className={({ isActive }) => cn(
-                            "flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200",
+                            "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
                             isActive
                                 ? "text-primary bg-primary/10"
-                                : "text-muted-foreground hover:text-foreground active:scale-95"
+                                : "text-muted-foreground active:scale-95 active:bg-secondary/50"
                         )}
                     >
-                        <Users className="w-5 h-5" />
-                        <span className="text-[10px] font-medium">Fleet</span>
+                        {({ isActive }) => (
+                            <>
+                                {isActive && (
+                                    <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                )}
+                                <MapPin className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
+                                <span className="text-xs font-bold relative z-10">Track</span>
+                            </>
+                        )}
                     </NavLink>
-                )}
 
-                <NavLink
-                    to="/profile"
-                    className={({ isActive }) => cn(
-                        "flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200",
-                        isActive
-                            ? "text-primary bg-primary/10"
-                            : "text-muted-foreground hover:text-foreground active:scale-95"
+                    {/* History Tab */}
+                    <NavLink
+                        to="/history"
+                        className={({ isActive }) => cn(
+                            "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                            isActive
+                                ? "text-primary bg-primary/10"
+                                : "text-muted-foreground active:scale-95 active:bg-secondary/50"
+                        )}
+                    >
+                        {({ isActive }) => (
+                            <>
+                                {isActive && (
+                                    <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                )}
+                                <Clock className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
+                                <span className="text-xs font-bold relative z-10">History</span>
+                            </>
+                        )}
+                    </NavLink>
+
+                    {/* Admin Map - Only for Admins */}
+                    {isAdmin && (
+                        <NavLink
+                            to="/admin"
+                            className={({ isActive }) => cn(
+                                "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                                isActive
+                                    ? "text-primary bg-primary/10"
+                                    : "text-muted-foreground active:scale-95 active:bg-secondary/50"
+                            )}
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    {isActive && (
+                                        <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                    )}
+                                    <Users className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
+                                    <span className="text-xs font-bold relative z-10">Fleet</span>
+                                </>
+                            )}
+                        </NavLink>
                     )}
-                >
-                    <User className="w-5 h-5" />
-                    <span className="text-[10px] font-medium">Profile</span>
-                </NavLink>
+
+                    {/* Profile Tab */}
+                    <NavLink
+                        to="/profile"
+                        className={({ isActive }) => cn(
+                            "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                            isActive
+                                ? "text-primary bg-primary/10"
+                                : "text-muted-foreground active:scale-95 active:bg-secondary/50"
+                        )}
+                    >
+                        {({ isActive }) => (
+                            <>
+                                {isActive && (
+                                    <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                )}
+                                <User className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
+                                <span className="text-xs font-bold relative z-10">Profile</span>
+                            </>
+                        )}
+                    </NavLink>
+                </div>
             </nav>
         </div>
     );

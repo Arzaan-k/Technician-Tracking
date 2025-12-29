@@ -170,7 +170,7 @@ export default function AdminMap() {
     }
 
     return (
-        <div className="h-screen w-full relative bg-gray-100">
+        <div className="h-full w-full relative bg-background">
             {/* Map */}
             <MapContainer
                 center={[20.5937, 78.9629]} // India center
@@ -272,11 +272,10 @@ export default function AdminMap() {
 
             {/* Top Stats Bar - with safe area */}
             <div
-                className="absolute top-0 left-0 right-0 z-[1000] px-4 flex items-start justify-between gap-3"
-                style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 16px)' }}
+                className="absolute top-0 left-0 right-0 z-[1000] px-4 flex items-start justify-between gap-3 safe-top"
             >
                 {/* Stats Card */}
-                <div className="bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200">
+                <div className="bg-card/95 backdrop-blur-md p-4 rounded-lg shadow-lg border border-border">
                     <div className="flex items-center gap-2 mb-2">
                         <Users className="w-4 h-4 text-primary" />
                         <h3 className="text-sm font-bold">Fleet Overview</h3>
@@ -292,10 +291,10 @@ export default function AdminMap() {
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                            <span className="font-medium text-gray-600">Offline: {stats.offline}</span>
+                            <span className="font-medium text-muted-foreground">Offline: {stats.offline}</span>
                         </div>
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+                    <div className="text-[10px] text-muted-foreground/70 mt-2 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         Updated {formatDistanceToNow(lastUpdate)} ago
                     </div>
@@ -308,38 +307,38 @@ export default function AdminMap() {
                         onClick={() => fetchTechnicians(true)}
                         disabled={isRefreshing}
                         className={cn(
-                            "p-3 bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200",
-                            "hover:bg-gray-50 transition-colors",
+                            "p-3 bg-card/95 backdrop-blur-md rounded-lg shadow-lg border border-border",
+                            "hover:bg-accent transition-colors",
                             isRefreshing && "opacity-50"
                         )}
                     >
-                        <RefreshCw className={cn("w-5 h-5 text-gray-600", isRefreshing && "animate-spin")} />
+                        <RefreshCw className={cn("w-5 h-5 text-muted-foreground", isRefreshing && "animate-spin")} />
                     </button>
 
                     {/* Filter Button */}
                     <button
                         onClick={() => setShowFilter(!showFilter)}
                         className={cn(
-                            "p-3 bg-white/95 backdrop-blur-md rounded-xl shadow-lg border transition-colors",
-                            showFilter ? "border-primary bg-primary/10" : "border-gray-200 hover:bg-gray-50"
+                            "p-3 bg-card/95 backdrop-blur-md rounded-lg shadow-lg border transition-colors",
+                            showFilter ? "border-primary bg-primary/10" : "border-border hover:bg-accent"
                         )}
                     >
-                        <Filter className={cn("w-5 h-5", showFilter ? "text-primary" : "text-gray-600")} />
+                        <Filter className={cn("w-5 h-5", showFilter ? "text-primary" : "text-muted-foreground")} />
                     </button>
                 </div>
             </div>
 
             {/* Filter Panel */}
             {showFilter && (
-                <div className="absolute top-24 right-4 z-[1000] w-72 bg-white/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200 overflow-hidden animate-in slide-in-from-top-2">
-                    <div className="p-3 border-b bg-gray-50/50">
+                <div className="absolute top-24 right-4 z-[1000] w-72 bg-card/95 backdrop-blur-md rounded-xl shadow-lg border border-border overflow-hidden animate-in slide-in-from-top-2">
+                    <div className="p-3 border-b border-border bg-muted/30">
                         <div className="flex items-center justify-between">
                             <h3 className="font-semibold text-sm">Filter Technicians</h3>
                             <button onClick={() => setShowFilter(false)}>
-                                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                                <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                             </button>
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-1">
+                        <p className="text-[10px] text-muted-foreground mt-1">
                             {selectedTechIds.length === 0
                                 ? 'Showing all technicians'
                                 : `Showing ${selectedTechIds.length} selected`}
@@ -352,15 +351,15 @@ export default function AdminMap() {
                                 key={tech.technician_id}
                                 onClick={() => toggleTechnician(tech.technician_id)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left",
+                                    "w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors text-left",
                                     selectedTechIds.includes(tech.technician_id) && "bg-primary/5"
                                 )}
                             >
                                 <div className={cn(
                                     "w-5 h-5 rounded border flex items-center justify-center",
                                     selectedTechIds.includes(tech.technician_id) || selectedTechIds.length === 0
-                                        ? "bg-primary border-primary text-white"
-                                        : "border-gray-300"
+                                        ? "bg-primary border-primary text-primary-foreground"
+                                        : "border-muted-foreground/30"
                                 )}>
                                     {(selectedTechIds.includes(tech.technician_id) || selectedTechIds.length === 0) && (
                                         <Check className="w-3 h-3" />
@@ -368,13 +367,13 @@ export default function AdminMap() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium truncate">{tech.name}</p>
-                                    <p className="text-[10px] text-gray-500 truncate">{tech.email}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">{tech.email}</p>
                                 </div>
                             </button>
                         ))}
                     </div>
 
-                    <div className="p-3 border-t bg-gray-50/50">
+                    <div className="p-3 border-t border-border bg-muted/30">
                         <button
                             onClick={selectAll}
                             className="w-full py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
@@ -387,7 +386,7 @@ export default function AdminMap() {
 
             {/* Error Banner */}
             {error && (
-                <div className="absolute bottom-24 left-4 right-4 z-[1000] bg-red-500/90 text-white p-3 rounded-xl flex items-center gap-3 animate-in slide-in-from-bottom-2">
+                <div className="absolute bottom-24 left-4 right-4 z-[1000] bg-destructive text-destructive-foreground p-3 rounded-lg flex items-center gap-3 animate-in slide-in-from-bottom-2 shadow-lg">
                     <AlertCircle className="w-5 h-5 flex-shrink-0" />
                     <span className="text-sm flex-1">{error}</span>
                     <button onClick={() => setError(null)}>
@@ -399,10 +398,10 @@ export default function AdminMap() {
             {/* Empty State */}
             {!isLoading && technicians.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center z-[500] pointer-events-none">
-                    <div className="bg-white/95 backdrop-blur-md p-6 rounded-2xl shadow-lg text-center max-w-xs pointer-events-auto">
-                        <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <h3 className="font-semibold text-gray-700 mb-1">No Technicians Found</h3>
-                        <p className="text-sm text-gray-500">
+                    <div className="bg-card/95 backdrop-blur-md p-6 rounded-2xl shadow-lg text-center max-w-xs pointer-events-auto border border-border">
+                        <MapPin className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                        <h3 className="font-semibold text-foreground mb-1">No Technicians Found</h3>
+                        <p className="text-sm text-muted-foreground">
                             {selectedTechIds.length > 0
                                 ? 'Selected technicians have no location data. Try selecting others.'
                                 : 'No technicians have shared their location yet.'}
