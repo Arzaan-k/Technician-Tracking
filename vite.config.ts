@@ -58,6 +58,8 @@ export default defineConfig({
     hmr: {
       overlay: true,
     },
+    port: 5180,
+    strictPort: true,
   },
   optimizeDeps: {
     force: true,

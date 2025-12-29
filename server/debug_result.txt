@@ -1,0 +1,59 @@
+--- DEBUGGING CONNECTIONS ---
+
+[POOL 1] Checking Tracking App DB...
+Connected to: {"current_database":"neondb","current_schema":"public"}
+
+[POOL 2] Checking Service Hub DB...
+Connected to: {"current_database":"neondb","current_schema":"public"}
+
+[POOL 2] TABLES SCAN:
+  - public.alerts: ~7090 rows
+  - public.container2: ~3811 rows
+  - public.whatsapp_messages: ~1983 rows
+  - public.containers: ~1765 rows
+  - public.location_logs: ~1452 rows
+  - public.service_history: ~1004 rows
+  - public.service_statistics: ~501 rows
+  - public.indents: ~288 rows
+  - public.service_requests: ~248 rows
+  - public.users: ~175 rows
+  - public.customers: ~128 rows
+  - public.audit_logs: ~104 rows
+  - public.rag_queries: ~82 rows
+  - public.technician_trip_tasks: ~63 rows
+  - public.password_reset_tokens: ~33 rows
+  - public.tracking_sessions: ~27 rows
+  - public.technicians: ~22 rows
+  - public.service_report_pdfs: ~20 rows
+  - public.email_verifications: ~18 rows
+  - public.manuals: ~13 rows
+  - public.daily_summary_acknowledgment: ~11 rows
+  - public.technician_trips: ~10 rows
+  - public.whatsapp_sessions: ~10 rows
+  - public.finance_expenses: ~10 rows
+  - public.technician_trip_costs: ~7 rows
+  - public.technician_costs: ~6 rows
+  - public.service_types: ~6 rows
+  - public.training_materials: ~6 rows
+  - public.location_standards: ~5 rows
+  - public.employees: ~5 rows
+  - public.training_views: ~4 rows
+  - public.container_size_standards: ~4 rows
+  - public.service_request_recordings: ~3 rows
+  - public.manufacturer_standards: ~3 rows
+  - public.invoices: ~1 rows
+  - public.service_request_remarks: ~1 rows
+  - public.location_multipliers: ~0 rows
+  - public.container_metrics: ~0 rows
+  - public.technician_documents: ~0 rows
+  - public.inspection_checklist_template: ~0 rows
+  - public.refresh_tokens: ~0 rows
+  - public.feedback: ~0 rows
+  - drizzle.__drizzle_migrations: ~0 rows
+  - public.inventory_transactions: ~0 rows
+  - public.manual_chunks: ~0 rows
+  - public.container_ownership_history: ~0 rows
+  - public.scheduled_services: ~0 rows
+  - public.inventory: ~0 rows
+  - public.courier_shipments: ~0 rows
+  - public.container_telemetry_history: ~0 rows

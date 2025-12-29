@@ -18,12 +18,12 @@ async function reverseGeocode(lat: number, lon: number): Promise<{ short: string
                 }
             }
         );
-        
+
         if (!response.ok) throw new Error('Geocoding failed');
-        
+
         const data = await response.json();
         const addr = data.address || {};
-        
+
         // Short address (area/neighborhood)
         const shortParts: string[] = [];
         if (addr.road) shortParts.push(addr.road);
@@ -31,7 +31,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<{ short: string
             shortParts.push(addr.neighbourhood || addr.suburb);
         }
         const short = shortParts.length > 0 ? shortParts.join(', ') : 'Current Location';
-        
+
         // Full detailed address
         const fullParts: string[] = [];
         if (addr.building || addr.amenity) fullParts.push(addr.building || addr.amenity);
@@ -52,9 +52,9 @@ async function reverseGeocode(lat: number, lon: number): Promise<{ short: string
         if (addr.postcode) {
             fullParts.push(addr.postcode);
         }
-        
+
         const full = fullParts.length > 0 ? fullParts.join(', ') : data.display_name || 'Unknown location';
-        
+
         return { short, full };
     } catch (error) {
         return { short: 'Location unavailable', full: 'Unable to determine address' };
@@ -63,17 +63,17 @@ async function reverseGeocode(lat: number, lon: number): Promise<{ short: string
 
 export default function Dashboard() {
     const { user } = useAuth();
-    const { 
-        isTracking, 
-        startTracking, 
-        stopTracking, 
-        currentLocation, 
-        error, 
-        initLocation, 
-        trackingStartTime, 
-        totalDistance 
+    const {
+        isTracking,
+        startTracking,
+        stopTracking,
+        currentLocation,
+        error,
+        initLocation,
+        trackingStartTime,
+        totalDistance
     } = useGeolocation();
-    
+
     const [duration, setDuration] = useState('00:00:00');
     const [isExpanded, setIsExpanded] = useState(false);
     const [address, setAddress] = useState<{ short: string; full: string } | null>(null);
@@ -87,7 +87,7 @@ export default function Dashboard() {
     // Fetch address when location changes
     const fetchAddress = useCallback(async () => {
         if (!currentLocation) return;
-        
+
         setIsLoadingAddress(true);
         const result = await reverseGeocode(currentLocation.latitude, currentLocation.longitude);
         setAddress(result);
@@ -101,14 +101,14 @@ export default function Dashboard() {
                 fetchAddress();
             }
         }, 2000); // Wait 2 seconds after location change
-        
+
         return () => clearTimeout(timer);
     }, [currentLocation?.latitude?.toFixed(4), currentLocation?.longitude?.toFixed(4)]);
 
     // Update duration timer
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
-        
+
         if (isTracking && trackingStartTime) {
             const updateDuration = () => {
                 const diff = Date.now() - trackingStartTime;
@@ -119,13 +119,13 @@ export default function Dashboard() {
                     `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
                 );
             };
-            
+
             updateDuration();
             interval = setInterval(updateDuration, 1000);
         } else {
             setDuration('00:00:00');
         }
-        
+
         return () => clearInterval(interval);
     }, [isTracking, trackingStartTime]);
 
@@ -169,8 +169,8 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 text-[10px] font-mono bg-black/40 px-2 py-1 rounded-full backdrop-blur-md border border-white/10">
                         <div className={cn(
                             "flex items-center gap-1",
-                            currentLocation?.accuracy && currentLocation.accuracy < 30 
-                                ? "text-green-400" 
+                            currentLocation?.accuracy && currentLocation.accuracy < 30
+                                ? "text-green-400"
                                 : "text-yellow-400"
                         )}>
                             <Signal className="w-3 h-3" />
@@ -178,8 +178,8 @@ export default function Dashboard() {
                         <span className="text-white/20">|</span>
                         <div className={cn(
                             "flex items-center gap-1",
-                            (currentLocation?.batteryLevel || 100) < 20 
-                                ? "text-red-400" 
+                            (currentLocation?.batteryLevel || 100) < 20
+                                ? "text-red-400"
                                 : "text-white"
                         )}>
                             <Battery className="w-3 h-3" />
@@ -210,7 +210,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                 )}
-                
+
                 {/* Error Banner */}
                 {error && (
                     <div className="mt-2 bg-red-500/80 backdrop-blur-md text-white text-xs p-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
@@ -249,12 +249,12 @@ export default function Dashboard() {
                             <div className="flex items-center gap-2 mt-1">
                                 <div className={cn(
                                     "w-2 h-2 rounded-full transition-colors",
-                                    isTracking 
-                                        ? "bg-green-500 animate-pulse" 
+                                    isTracking
+                                        ? "bg-green-500 animate-pulse"
                                         : "bg-gray-300 dark:bg-gray-600"
                                 )} />
                                 <span className="text-xs font-medium text-muted-foreground">
-                                    {isTracking ? "Live Tracking" : "Offline"}
+                                    {isTracking ? "Live Tracking • Screen Awake" : "Offline"}
                                 </span>
                             </div>
                         </div>
@@ -270,8 +270,8 @@ export default function Dashboard() {
                                     : "bg-primary hover:bg-primary/90 text-primary-foreground"
                             )}
                         >
-                            {isTracking 
-                                ? <Pause className="w-8 h-8 fill-current" /> 
+                            {isTracking
+                                ? <Pause className="w-8 h-8 fill-current" />
                                 : <Play className="w-8 h-8 fill-current ml-1" />
                             }
                         </button>
@@ -285,10 +285,10 @@ export default function Dashboard() {
                                 <span className="text-xs font-medium">Speed</span>
                             </div>
                             <p className="text-xl font-bold text-foreground">
-                                {currentLocation?.speed 
-                                    ? Math.round(currentLocation.speed * 3.6) 
+                                {currentLocation?.speed
+                                    ? Math.round(currentLocation.speed * 3.6)
                                     : 0
-                                } 
+                                }
                                 <span className="text-sm font-normal text-muted-foreground"> km/h</span>
                             </p>
                         </div>
@@ -298,7 +298,7 @@ export default function Dashboard() {
                                 <span className="text-xs font-medium">Distance</span>
                             </div>
                             <p className="text-xl font-bold text-foreground">
-                                {totalDistance.toFixed(2)} 
+                                {totalDistance.toFixed(2)}
                                 <span className="text-sm font-normal text-muted-foreground"> km</span>
                             </p>
                         </div>
@@ -355,9 +355,9 @@ export default function Dashboard() {
                                         </p>
                                     </div>
                                 </div>
-                                
+
                                 {/* Open in Maps Button */}
-                                <a 
+                                <a
                                     href={`https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}`}
                                     target="_blank"
                                     rel="noopener noreferrer"

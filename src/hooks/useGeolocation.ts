@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { location } from '@/lib/api';
+import { Capacitor } from '@capacitor/core';
+import { ForegroundService } from '@capawesome-team/capacitor-android-foreground-service';
 
 interface LocationUpdate {
     latitude: number;
@@ -157,6 +159,39 @@ export function useGeolocation(): UseGeolocationReturn {
         return cleanup;
     }, [cleanup, initLocation]);
 
+    // internal wake lock ref
+    const wakeLockRef = useRef<any>(null);
+
+    // Request Wake Lock to keep screen (and GPS) active
+    const requestWakeLock = useCallback(async () => {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+                console.log('Wake Lock active');
+
+                wakeLockRef.current.addEventListener('release', () => {
+                    console.log('Wake Lock released');
+                });
+            } catch (err: any) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        }
+    }, []);
+
+    // Re-acquire wake lock on visibility change if tracking
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState === 'visible' && isTracking && !wakeLockRef.current) {
+                await requestWakeLock();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isTracking, requestWakeLock]);
+
     // Internal tracking start (can resume)
     const startTrackingInternal = async (isResuming = false) => {
         if (!navigator.geolocation) {
@@ -165,6 +200,22 @@ export function useGeolocation(): UseGeolocationReturn {
         }
 
         try {
+            await requestWakeLock(); // Request Screen Wake Lock
+
+            // Start Foreground Service (Android)
+            if (Capacitor.getPlatform() === 'android') {
+                try {
+                    await ForegroundService.startForegroundService({
+                        id: 12345,
+                        body: 'Technician Tracking Active',
+                        title: 'LocTrack',
+                        smallIcon: 'ic_stat_location', // Needs to be added to Android Res
+                    });
+                } catch (e) {
+                    console.error('Failed to start foreground service', e);
+                }
+            }
+
             if (!isResuming) {
                 // Create new session on server
                 await location.startTracking();
@@ -271,6 +322,25 @@ export function useGeolocation(): UseGeolocationReturn {
             await location.stopTracking({ distance: totalDistance });
         } catch {
             // Session might already be stopped
+        }
+
+        // Stop Foreground Service
+        if (Capacitor.getPlatform() === 'android') {
+            try {
+                await ForegroundService.stopForegroundService();
+            } catch (e) {
+                console.error('Failed to stop foreground service', e);
+            }
+        }
+
+        // Release Wake Lock
+        if (wakeLockRef.current) {
+            try {
+                await wakeLockRef.current.release();
+                wakeLockRef.current = null;
+            } catch (e) {
+                console.error('Error releasing wake lock:', e);
+            }
         }
 
         // Clear state

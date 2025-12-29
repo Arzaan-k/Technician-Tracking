@@ -1,0 +1,143 @@
+--- LISTING SERVICE HUB USERS ---
+Found 20 users (showing top 20):
+
+ID: 1fd82acf-3eb4-4938-9b36-626266aadd49
+Email: arzaan.211415.i@mhssce.ac.in
+Name: jjkjj
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: 69874bda-580c-48a3-8d78-cd1be3145ba9
+Email: careers@crystalgroup.in
+Name: nnn
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: dd6143d3-2763-410e-a571-bc05226dd765
+Email: chavandhiksha@gmail.com
+Name: hhkk
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: 13aa0445-bd79-4a74-b4d0-97a2fcb20743
+Email: 1032220039@tcetmumbai.in
+Name: Sita
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: e49ddefe-fbab-4612-8d21-51b2114fbd89
+Email: chavandhiknshsha@gmail.com
+Name: hhd
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: d3e46f5d-e9ab-4523-81c6-fa7708707a83
+Email: tiwarishruti310@outlook.com
+Name: hbasksza
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: 355469aa-2b47-456f-abc4-5dd0a74892fe
+Email: ajaythakur0711@gmail.com
+Name: Ajay Dnyaneshwar thakur
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: 43c9e1c7-47b1-439a-aae9-1836345495f8
+Email: Imtiyazmansoori11899@gmail.com
+Name: Muslim imtiyaz Muhammad 
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: ad641940-ff58-4bf1-95c5-aba289d9b4c1
+Email: aamankumara2006@gmail.com
+Name: AMAN KUMAR 
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: b6cb85ba-56a3-444e-b3f6-0a89d36a67e2
+Email: darsheelacharya@gmail.com
+Name: Avijit Acharya
+Role: technician
+Active: true
+Password Hash (prefix): $2b$10$gOh...
+---
+ID: 77371e87-8bf2-469c-a606-6ecf113629b6
+Email: shrutitiwari5477@gmail.com
+Name: Test
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: b2591469-45d6-4735-ba42-f7c28ae2c389
+Email: service@gmail.com
+Name: test
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: d5d0afdf-7b29-4db5-bf0a-6a35d8c3eccf
+Email: ops@servicehub.com
+Name: Operations Manager
+Role: admin
+Active: true
+Password Hash (prefix): $2b$10$SVS...
+---
+ID: a054f1b0-4fae-4887-a96f-4645eeda7294
+Email: admin@servicehub.com
+Name: System Administrator
+Role: admin
+Active: true
+Password Hash (prefix): $2b$10$9no...
+---
+ID: 752c7a79-3500-4f5f-be56-8df3035b5dc1
+Email: aiteamcrystal@gmail.com
+Name: Shruti
+Role: technician
+Active: true
+Password Hash (prefix): NULL
+---
+ID: 383af72e-ea17-4a6f-a7ce-ea7ac1f31505
+Email: johnwick.48675@gmail.com
+Name: Mohammad
+Role: admin
+Active: true
+Password Hash (prefix): $2b$10$GV2...
+---
+ID: system
+Email: system@containergenie.com
+Name: System
+Role: admin
+Active: true
+Password Hash (prefix): NULL
+---
+ID: d7707fcc-0482-4250-9dc6-dc327581a44d
+Email: admin@test.com
+Name: Test Admin
+Role: admin
+Active: true
+Password Hash (prefix): $2b$10$RRD...
+---
+ID: 33e491a6-bd1b-4dca-b4e8-c601ff70e145
+Email: chavandhiksha212@gmail.com
+Name: Dhiksha Chavan
+Role: admin
+Active: true
+Password Hash (prefix): $2b$10$7Cz...
+---
+ID: b066c68c-027a-436a-9cd8-af2ee3bfcbf0
+Email: test
+Name: hi
+Role: technician
+Active: false
+Password Hash (prefix): $2b$10$zoF...
+---

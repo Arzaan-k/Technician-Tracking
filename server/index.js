@@ -34,9 +34,9 @@ const PORT = process.env.PORT || 3000;
 // In production with same-origin deployment, CORS is not needed
 // In development, allow localhost
 const corsOptions = {
-    origin: process.env.FRONTEND_URL 
+    origin: process.env.FRONTEND_URL
         ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-        : process.env.NODE_ENV === 'production' 
+        : process.env.NODE_ENV === 'production'
             ? true  // In production, allow same origin (frontend and backend on same domain)
             : '*',  // In development, allow all
     credentials: true,
@@ -53,7 +53,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health check endpoint
+// Health check endpoints (for Render and general API health)
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
