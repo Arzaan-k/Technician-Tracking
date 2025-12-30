@@ -25,11 +25,43 @@
 
         </activity>
 
-        <!-- Foreground Service for Background Location Tracking -->
+        <!-- Foreground Service for Background Location Tracking (Capawesome - fallback) -->
         <service
             android:name="io.capawesome.capacitorjs.plugins.foregroundservice.ForegroundService"
             android:foregroundServiceType="location"
             android:exported="false" />
+
+        <!-- Native Background Location Service - Production Grade -->
+        <!-- stopWithTask="false" ensures service survives app being swiped away -->
+        <service
+            android:name=".LocationBackgroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location"
+            android:stopWithTask="false" />
+
+        <!-- Activity Transition Receiver - Detects walking, driving, stationary -->
+        <receiver
+            android:name=".ActivityTransitionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.android.gms.location.ACTIVITY_TRANSITION" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Boot Receiver - Restarts tracking after device reboot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -42,16 +74,32 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!-- ==================== PERMISSIONS ==================== -->
+    
+    <!-- Basic -->
     <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Location Permissions -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
+    <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Required for Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    
+    <!-- Activity Recognition - for smart tracking (walking, driving, etc.) -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
+    
+    <!-- Notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Keep Service Running -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Keep CPU running in background -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    
+    <!-- Boot Receiver - to restart tracking after reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
 </manifest>

@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { MapPin, User, Clock, Users } from 'lucide-react';
+import { MapPin, User, Clock, Users, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -61,6 +61,29 @@ export default function RootLayout() {
                             </>
                         )}
                     </NavLink>
+
+                    {/* Admin Dashboard - Only for Admins */}
+                    {isAdmin && (
+                        <NavLink
+                            to="/admin/dashboard"
+                            className={({ isActive }) => cn(
+                                "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                                isActive
+                                    ? "text-primary bg-primary/10"
+                                    : "text-muted-foreground active:scale-95 active:bg-secondary/50"
+                            )}
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    {isActive && (
+                                        <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                    )}
+                                    <BarChart3 className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
+                                    <span className="text-xs font-bold relative z-10">Admin</span>
+                                </>
+                            )}
+                        </NavLink>
+                    )}
 
                     {/* Admin Map - Only for Admins */}
                     {isAdmin && (

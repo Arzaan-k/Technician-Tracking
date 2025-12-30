@@ -62,4 +62,33 @@ export const location = {
     getSessionDetails: (sessionId: string) => api.get(`/location/sessions/${sessionId}`),
 };
 
+// Admin API endpoints
+export const admin = {
+    // Employee management
+    getEmployees: (params?: { status?: string; search?: string; sortBy?: string; sortOrder?: string }) =>
+        api.get('/admin/employees', { params }),
+    getEmployee: (id: string) =>
+        api.get(`/admin/employees/${id}`),
+    getEmployeeSessions: (id: string, params?: { startDate?: string; endDate?: string; limit?: number }) =>
+        api.get(`/admin/employees/${id}/sessions`, { params }),
+
+    // Analytics
+    getAnalyticsOverview: (params?: { startDate?: string; endDate?: string }) =>
+        api.get('/admin/analytics/overview', { params }),
+    getEmployeeAnalytics: (params?: { period?: '1d' | '7d' | '30d' | '90d' }) =>
+        api.get('/admin/analytics/employees', { params }),
+    getDailyAnalytics: (params?: { days?: number }) =>
+        api.get('/admin/analytics/daily', { params }),
+
+    // Live tracking (existing)
+    getTechnicians: () =>
+        api.get('/admin/technicians'),
+    getLiveMap: (ids?: string[]) =>
+        api.get('/admin/live-map', { params: ids ? { ids: ids.join(',') } : {} }),
+    getTechnicianHistory: (id: string, params?: { limit?: number; date?: string }) =>
+        api.get(`/admin/technician/${id}/history`, { params }),
+    getStats: () =>
+        api.get('/admin/stats'),
+};
+
 export default api;
