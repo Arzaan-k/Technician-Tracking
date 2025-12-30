@@ -18,13 +18,13 @@ export default function RootLayout() {
             <nav
                 className="flex-shrink-0 bg-card/95 backdrop-blur-xl border-t border-border/50 shadow-[0_-2px_20px_rgba(0,0,0,0.06)] z-50 safe-bottom safe-left safe-right"
             >
-                <div className="flex justify-around items-center px-4 pt-3">
+                <div className="flex justify-around items-center px-2 py-2 gap-1">
                     {/* Track Tab */}
                     <NavLink
                         to="/"
                         end
                         className={({ isActive }) => cn(
-                            "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                            "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[56px] relative group",
                             isActive
                                 ? "text-primary bg-primary/10"
                                 : "text-muted-foreground active:scale-95 active:bg-secondary/50"
@@ -33,7 +33,7 @@ export default function RootLayout() {
                         {({ isActive }) => (
                             <>
                                 {isActive && (
-                                    <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                    <div className="absolute inset-0 bg-primary/5 rounded-xl animate-pulse" />
                                 )}
                                 <MapPin className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
                                 <span className="text-xs font-bold relative z-10">Track</span>
@@ -45,7 +45,7 @@ export default function RootLayout() {
                     <NavLink
                         to="/history"
                         className={({ isActive }) => cn(
-                            "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                            "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[56px] relative group",
                             isActive
                                 ? "text-primary bg-primary/10"
                                 : "text-muted-foreground active:scale-95 active:bg-secondary/50"
@@ -54,7 +54,7 @@ export default function RootLayout() {
                         {({ isActive }) => (
                             <>
                                 {isActive && (
-                                    <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                    <div className="absolute inset-0 bg-primary/5 rounded-xl animate-pulse" />
                                 )}
                                 <Clock className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
                                 <span className="text-xs font-bold relative z-10">History</span>
@@ -67,7 +67,7 @@ export default function RootLayout() {
                         <NavLink
                             to="/admin/dashboard"
                             className={({ isActive }) => cn(
-                                "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                                "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[56px] relative group",
                                 isActive
                                     ? "text-primary bg-primary/10"
                                     : "text-muted-foreground active:scale-95 active:bg-secondary/50"
@@ -76,7 +76,7 @@ export default function RootLayout() {
                             {({ isActive }) => (
                                 <>
                                     {isActive && (
-                                        <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                        <div className="absolute inset-0 bg-primary/5 rounded-xl animate-pulse" />
                                     )}
                                     <BarChart3 className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
                                     <span className="text-xs font-bold relative z-10">Admin</span>
@@ -90,7 +90,7 @@ export default function RootLayout() {
                         <NavLink
                             to="/admin"
                             className={({ isActive }) => cn(
-                                "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                                "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[56px] relative group",
                                 isActive
                                     ? "text-primary bg-primary/10"
                                     : "text-muted-foreground active:scale-95 active:bg-secondary/50"
@@ -99,7 +99,7 @@ export default function RootLayout() {
                             {({ isActive }) => (
                                 <>
                                     {isActive && (
-                                        <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                        <div className="absolute inset-0 bg-primary/5 rounded-xl animate-pulse" />
                                     )}
                                     <Users className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
                                     <span className="text-xs font-bold relative z-10">Fleet</span>
@@ -112,7 +112,7 @@ export default function RootLayout() {
                     <NavLink
                         to="/profile"
                         className={({ isActive }) => cn(
-                            "flex flex-col items-center gap-1 py-2.5 px-5 rounded-2xl transition-all duration-200 min-w-[68px] relative group",
+                            "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[56px] relative group",
                             isActive
                                 ? "text-primary bg-primary/10"
                                 : "text-muted-foreground active:scale-95 active:bg-secondary/50"
@@ -121,7 +121,7 @@ export default function RootLayout() {
                         {({ isActive }) => (
                             <>
                                 {isActive && (
-                                    <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                                    <div className="absolute inset-0 bg-primary/5 rounded-xl animate-pulse" />
                                 )}
                                 <User className={cn("w-6 h-6 relative z-10", isActive && "drop-shadow-sm")} />
                                 <span className="text-xs font-bold relative z-10">Profile</span>

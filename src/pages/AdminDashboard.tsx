@@ -552,28 +552,28 @@ export default function AdminDashboard() {
                                         <Activity className="w-3.5 h-3.5" />
                                         <span className="text-[10px] font-bold uppercase">Sessions</span>
                                     </div>
-                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats.total_sessions}</p>
+                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats?.total_sessions ?? 0}</p>
                                 </div>
                                 <div className="bg-secondary/30 rounded-xl p-3 flex flex-col gap-1">
                                     <div className="flex items-center gap-1.5 text-green-500">
                                         <MapPin className="w-3.5 h-3.5" />
                                         <span className="text-[10px] font-bold uppercase">Distance</span>
                                     </div>
-                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats.total_distance} <span className="text-xs font-normal text-muted-foreground">km</span></p>
+                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats?.total_distance ?? '0.00'} <span className="text-xs font-normal text-muted-foreground">km</span></p>
                                 </div>
                                 <div className="bg-secondary/30 rounded-xl p-3 flex flex-col gap-1">
                                     <div className="flex items-center gap-1.5 text-purple-500">
                                         <Clock className="w-3.5 h-3.5" />
                                         <span className="text-[10px] font-bold uppercase">Avg Time</span>
                                     </div>
-                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats.avg_session_duration} <span className="text-xs font-normal text-muted-foreground">min</span></p>
+                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats?.avg_session_duration ?? 0} <span className="text-xs font-normal text-muted-foreground">min</span></p>
                                 </div>
                                 <div className="bg-secondary/30 rounded-xl p-3 flex flex-col gap-1">
                                     <div className="flex items-center gap-1.5 text-orange-500">
                                         <TrendingUp className="w-3.5 h-3.5" />
                                         <span className="text-[10px] font-bold uppercase">Updates</span>
                                     </div>
-                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats.total_locations}</p>
+                                    <p className="text-xl font-bold text-foreground">{selectedEmployee.stats?.total_locations ?? 0}</p>
                                 </div>
                             </div>
 
@@ -624,7 +624,7 @@ export default function AdminDashboard() {
                                     Last 7 Days
                                 </h3>
                                 <div className="space-y-2">
-                                    {selectedEmployee.weeklyActivity.map((day) => (
+                                    {(selectedEmployee.weeklyActivity || []).map((day) => (
                                         <div key={day.date} className="flex items-center gap-3 p-2.5 bg-card border border-border/50 rounded-xl hover:bg-secondary/30 transition-colors">
                                             <span className="text-xs font-medium text-muted-foreground w-16">
                                                 {format(new Date(day.date), 'EEE')}
@@ -632,15 +632,15 @@ export default function AdminDashboard() {
                                             <div className="flex-1 bg-secondary rounded-full h-1.5 overflow-hidden">
                                                 <div
                                                     className="bg-primary h-full rounded-full"
-                                                    style={{ width: `${Math.min((parseFloat(day.distance) / 20) * 100, 100)}%` }}
+                                                    style={{ width: `${Math.min((parseFloat(day.distance || '0') / 20) * 100, 100)}%` }}
                                                 />
                                             </div>
                                             <div className="text-right w-20">
-                                                <p className="text-xs font-bold text-foreground">{day.distance} km</p>
+                                                <p className="text-xs font-bold text-foreground">{day.distance || '0.00'} km</p>
                                             </div>
                                         </div>
                                     ))}
-                                    {selectedEmployee.weeklyActivity.length === 0 && (
+                                    {(!selectedEmployee.weeklyActivity || selectedEmployee.weeklyActivity.length === 0) && (
                                         <p className="text-muted-foreground text-center text-xs py-4 bg-secondary/20 rounded-xl">No activity recorded</p>
                                     )}
                                 </div>
